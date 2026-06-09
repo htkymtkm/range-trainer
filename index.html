@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Poker Range Tree</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Range Tree">
+<meta name="theme-color" content="#0f1117" id="metaThemeColor">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+/* ── THEME TOKENS ── */
+:root {
+  --bg:       #0f1117;
+  --surface:  #1a1d27;
+  --s2:       #22253a;
+  --s3:       #2a2e45;
+  --border:   #2e3350;
+  --text:     #e8eaf0;
+  --t2:       #8a90b0;
+  --t3:       #555a7a;
+  --gold:     #f0c040;
+  --cell-off: #1e2130;
+  --cell-fg:  #3a4060;
+  --cell-bd:  #252840;
+  --cell-lock:#141620;
+  --cell-lock-fg: #2a2d40;
+  --unfill:   rgba(255,255,255,0.08);
+  --shadow:   rgba(0,0,0,0.65);
+  --cap-bg:   #0f1117;
+  --accent:   #4090ff;
+}
+html[data-theme="light"] {
+  --bg:       #eef0f8;
+  --surface:  #ffffff;
+  --s2:       #e4e6f4;
+  --s3:       #d4d8ec;
+  --border:   #bcc0d8;
+  --text:     #181b2c;
+  --t2:       #4a5078;
+  --t3:       #8890b0;
+  --gold:     #a06800;
+  --cell-off: #d8daea;
+  --cell-fg:  #8890b0;
+  --cell-bd:  #c0c4d8;
+  --cell-lock:#c4c8dc;
+  --cell-lock-fg: #a0a4bc;
+  --unfill:   rgba(0,0,0,0.14);
+  --shadow:   rgba(0,0,0,0.20);
+  --cap-bg:   #eef0f8;
+  --accent:   #2060d0;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition: background .2s, color .2s;
+}
+body {
+  padding: 10px 12px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+}
+
+/* ── TITLEBAR ── */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  color: var(--text);
+  flex: 1;
+}
+.save-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #30c890;
+  margin-left: 7px;
+  opacity: 0;
+  transition: opacity .3s;
+  vertical-align: middle;
+}
+.save-dot.on { opacity: 1; }
+
+/* ── ICON BUTTON ── */
+.icon-btn {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--t2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.icon-btn:hover, .icon-btn:active { background: var(--s2); color: var(--text); }
+.icon-btn.danger { color: #e06060; border-color: #5a2828; }
+.icon-btn.danger:hover { background: #2a1010; color: #ff9090; border-color: #7a3030; }
+.icon-btn svg {
+  width: 15px; height: 15px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* ── STREET NAV ── */
+.street-nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.street-nav::-webkit-scrollbar { display: none; }
+
+.nav-node {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.nav-chevron {
+  color: var(--t3);
+  font-size: 11px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  gap: 1px;
+  min-width: 0;
+}
+.nav-btn:hover { background: var(--s2); }
+.nav-btn.active {
+  background: var(--s2);
+  border-color: var(--border);
+}
+.nav-street-label {
+  font-size: 9px;
+  color: var(--t3);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.nav-board {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+  display: flex;
+  gap: 2px;
+}
+.nav-board.preflop-label {
+  font-size: 11px;
+  color: var(--t2);
+}
+.card-s { color: #60c890; }
+.card-h { color: #e06060; }
+.card-d { color: #60b8e0; }
+.card-c { color: #90d060; }
+
+/* ── NAV ACTIONS ── */
+.nav-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding-left: 6px;
+}
+.nav-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--t2);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.nav-add-btn:hover { background: var(--s2); color: var(--text); border-color: var(--t2); }
+.nav-add-btn svg {
+  width: 11px; height: 11px;
+  stroke: currentColor; fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.nav-del-btn {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--t3);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.nav-del-btn:hover { background: #2a1010; color: #e06060; }
+.nav-del-btn svg {
+  width: 12px; height: 12px;
+  stroke: currentColor; fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* ── GRID ── */
+.grid-section { margin-bottom: 10px; width: 100%; }
+#captureRoot {
+  background: var(--cap-bg);
+  border-radius: 6px;
+  padding: 6px;
+  width: 100%;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 2px;
+  width: 100%;
+}
+.cell {
+  width: 100%;
+  aspect-ratio: 11 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(6px, 1.6vw, 11.5px);
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  border-radius: 3px;
+  position: relative;
+  user-select: none;
+  border: 1px solid transparent;
+  overflow: hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform .07s;
+}
+.cell:active { transform: scale(0.94); }
+.cell.pressing::before {
+  content: '';
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background: rgba(255,255,255,0.18);
+  border-radius: 3px;
+  pointer-events: none;
+  animation: pressAnim 500ms linear forwards;
+}
+@keyframes pressAnim {
+  0%   { opacity: 0; }
+  40%  { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+.cell.off {
+  background: var(--cell-off);
+  color: var(--cell-fg);
+  border-color: var(--cell-bd);
+}
+/* locked = not in parent range */
+.cell.locked {
+  background: var(--cell-lock);
+  color: var(--cell-lock-fg);
+  border-color: var(--cell-lock);
+  cursor: default;
+  opacity: 0.5;
+}
+.cell-label {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  letter-spacing: -.4px;
+}
+.cell.checked .cell-label { color: var(--gold) !important; }
+.cell.checked::after {
+  content: '✓';
+  position: absolute; top: 1px; right: 2px;
+  font-size: 7px;
+  color: var(--gold);
+}
+.cell-bg {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  display: flex;
+}
+.cell-seg { height: 100%; }
+.cell-unfilled { height: 100%; background: var(--unfill); }
+
+/* ── COLOR BAR ── */
+.color-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.color-bar { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.color-btn {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform .12s, border-color .12s;
+}
+.color-btn:hover { transform: scale(1.14); }
+.color-btn.sel { border-color: var(--text); transform: scale(1.22); }
+
+.clear-sel-btn {
+  padding: 5px 11px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--t2);
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.clear-sel-btn:hover { background: var(--s2); color: var(--text); }
+
+/* preset badge */
+.preset-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--t3);
+  white-space: nowrap;
+}
+.preset-badge.preflop { border-color: #405080; color: #6080c0; }
+.preset-badge.postflop { border-color: #305040; color: #50a070; }
+
+/* ── STATS CARD ── */
+.bottom-row { margin-bottom: 8px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 13px;
+}
+.card-title {
+  font-size: 10px;
+  color: var(--t3);
+  margin-bottom: 8px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.range-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.range-sub {
+  font-size: 11px;
+  color: var(--t2);
+  margin-bottom: 8px;
+}
+.color-stats { display: flex; flex-direction: column; gap: 4px; }
+.cstat { display: flex; align-items: center; gap: 6px; }
+.cstat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cstat-name { font-size: 11px; color: var(--t2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cstat-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text); flex-shrink: 0; }
+
+/* export btn */
+.export-row { margin-top: 10px; }
+.export-btn {
+  padding: 8px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  font-weight: 500;
+  border: 1px solid #405a30;
+  color: #60c840;
+  background: #182810;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: background .12s;
+}
+.export-btn:hover { background: #203818; }
+.export-btn svg {
+  width: 13px; height: 13px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+html[data-theme="light"] .export-btn {
+  background: #d0f0b8; color: #286010; border-color: #80c040;
+}
+html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
+
+/* ── HINT BAR ── */
+.hint-bar {
+  margin-top: 8px;
+  padding: 5px 8px;
+  font-size: 10px;
+  color: var(--t3);
+  text-align: center;
+  letter-spacing: .04em;
+}
+
+/* ── CONTEXT MENU ── */
+.ctx-overlay {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: rgba(0,0,0,0.50);
+  z-index: 900;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+.ctx-overlay.open { opacity: 1; visibility: visible; }
+
+.ctx-menu {
+  position: fixed;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(.94);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0 0 10px;
+  z-index: 1000;
+  width: 340px;
+  max-width: 92vw;
+  box-shadow: 0 12px 48px var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+}
+.ctx-menu.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+.ctx-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.ctx-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.ctx-close-btn {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  color: var(--t2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s, color .12s;
+}
+.ctx-close-btn:hover { background: var(--s3); color: var(--text); }
+.ctx-close-btn svg {
+  width: 13px; height: 13px;
+  stroke: currentColor; fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.ctx-sec { font-size: 10px; color: var(--t3); padding: 4px 10px 2px; letter-spacing: .05em; }
+
+.freq-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 0 2px;
+}
+.freq-row:hover { background: var(--s2); }
+.fdot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.fname { font-size: 11px; color: var(--t2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finput {
+  width: 50px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 5px;
+  background: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  text-align: right;
+  -webkit-user-select: text;
+  user-select: text;
+  transition: border-color .12s;
+}
+.finput:focus { outline: none; border-color: var(--t2); }
+.finput.err { border-color: #ff5522; color: #ff7755; }
+.fpct { font-size: 10px; color: var(--t3); }
+
+.fbar-wrap { padding: 6px 10px 4px; }
+.fbar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--s3);
+}
+.fbar-seg { height: 100%; }
+
+.freq-total-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 3px;
+  border-top: 1px solid var(--border);
+  margin-top: 3px;
+}
+.freq-total-lbl { font-size: 10px; color: var(--t3); flex: 1; }
+.freq-total-val { font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); }
+.freq-error { font-size: 10px; color: #ff5522; font-weight: 600; margin-left: 4px; }
+
+.ctx-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 3px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.ctx-check-row:hover { background: var(--s2); }
+.ctx-cb {
+  width: 15px; height: 15px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--s3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.ctx-cb-lbl { font-size: 11px; color: var(--t2); }
+
+.ctx-rm {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 6px 10px 0;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid #6e2828;
+  border-radius: 5px;
+  color: #e06060;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background .12s;
+}
+.ctx-rm:hover { background: #3a1515; }
+
+/* ── ADD NODE MODAL ── */
+.modal-overlay {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: rgba(0,0,0,0.60);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  width: 340px;
+  max-width: 92vw;
+  box-shadow: 0 12px 48px var(--shadow);
+}
+.modal-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.modal-label {
+  font-size: 10px;
+  color: var(--t3);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.modal-inp {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  -webkit-user-select: text;
+  user-select: text;
+  margin-bottom: 12px;
+  transition: border-color .12s;
+}
+.modal-inp:focus { outline: none; border-color: var(--t2); }
+
+.card-picker {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.card-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.card-slot-label {
+  font-size: 9px;
+  color: var(--t3);
+  letter-spacing: .05em;
+  text-align: center;
+}
+.card-inp {
+  width: 56px;
+  padding: 6px 6px;
+  background: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  -webkit-user-select: text;
+  user-select: text;
+  transition: border-color .12s;
+  text-transform: uppercase;
+}
+.card-inp:focus { outline: none; border-color: var(--t2); }
+.card-inp.has-val { color: var(--text); font-weight: 600; }
+
+.modal-hint {
+  font-size: 10px;
+  color: var(--t3);
+  margin-bottom: 12px;
+}
+.modal-err {
+  font-size: 11px;
+  color: #ff5522;
+  margin-bottom: 8px;
+  min-height: 16px;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.modal-btn {
+  padding: 7px 16px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  color: var(--t2);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background .12s, color .12s;
+}
+.modal-btn:hover { background: var(--s3); color: var(--text); }
+.modal-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.modal-btn.primary:hover { opacity: .88; }
+
+/* ── GEAR DROPDOWN ── */
+.gear-wrap { position: relative; }
+.gear-dd {
+  position: absolute;
+  right: 0; top: 37px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 8px;
+  min-width: 224px;
+  z-index: 600;
+  box-shadow: 0 10px 36px var(--shadow);
+  display: none;
+}
+.gear-dd.open { display: block; }
+.dd-sec {
+  font-size: 10px;
+  color: var(--t3);
+  padding: 5px 8px 3px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dd-sep { height: 1px; background: var(--border); margin: 5px 2px; }
+.dd-crow { display: flex; align-items: center; gap: 7px; padding: 3px 6px; }
+.dd-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dd-inp {
+  flex: 1;
+  padding: 3px 7px;
+  background: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  -webkit-user-select: text;
+  user-select: text;
+  transition: border-color .12s;
+}
+.dd-inp:focus { outline: none; border-color: var(--t2); }
+.theme-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-left: auto;
+}
+.theme-opt {
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--t3);
+  border: none;
+  font-family: system-ui, sans-serif;
+  transition: background .12s, color .12s;
+}
+.theme-opt.active { background: var(--s3); color: var(--text); }
+.dd-btn {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--t2);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: background .12s, color .12s;
+}
+.dd-btn:hover { background: var(--s2); color: var(--text); }
+.dd-btn svg {
+  width: 13px; height: 13px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.dd-btn.danger { color: #e06060; }
+.dd-btn.danger:hover { background: #2a1010 !important; color: #ff9090; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%; transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 12px;
+  color: var(--text);
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+.toast.show { opacity: 1; }
+
+/* node name label row */
+.node-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.node-name-inp {
+  flex: 1;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--t2);
+  font-size: 11px;
+  font-family: system-ui, sans-serif;
+  -webkit-user-select: text;
+  user-select: text;
+  transition: border-color .12s, background .12s;
+}
+.node-name-inp:focus {
+  outline: none;
+  border-color: var(--border);
+  background: var(--s2);
+  color: var(--text);
+}
+
+/* ── POSITION BADGE ── */
+.pos-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.pos-btn {
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--t2);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.pos-btn:hover { background: var(--s2); }
+.pos-btn.active { background: var(--s3); border-color: var(--t2); color: var(--text); }
+.pos-label {
+  font-size: 10px;
+  color: var(--t3);
+  margin-right: 2px;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TITLEBAR -->
+<div class="titlebar">
+  <span class="title">
+    RANGE TREE
+    <span class="save-dot" :class="{ on: saveDotOn }"></span>
+  </span>
+
+  <!-- position selector (preflop only) -->
+  <div class="pos-row" v-if="currentNode === session.preflop" style="margin-bottom:0;margin-right:4px;">
+    <span class="pos-label">POS</span>
+    <button
+      v-for="pos in POSITIONS"
+      :key="pos"
+      class="pos-btn"
+      :class="{ active: session.preflop.position === pos }"
+      @click="session.preflop.position = pos; schedSave()"
+    >{{ pos }}</button>
+  </div>
+
+  <div style="display:flex;gap:5px;align-items:center;">
+    <button class="icon-btn danger" title="Clear current street" @click="clearCurrent">
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+    </button>
+    <div class="gear-wrap">
+      <button class="icon-btn" title="Settings" @click="toggleGear">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+      <div class="gear-dd" :class="{ open: gearOpen }">
+        <div class="dd-sec">Edit color names — {{ currentPreset === 'preflop' ? 'Preflop' : 'Postflop' }}</div>
+        <div v-for="col in currentColors" :key="col.id" class="dd-crow">
+          <div class="dd-dot" :style="{ background: col.bright }"></div>
+          <input class="dd-inp" type="text" v-model="col.name" @input="schedSave">
+        </div>
+        <div class="dd-sep"></div>
+        <div class="dd-sec">
+          Theme
+          <div class="theme-toggle">
+            <button class="theme-opt" :class="{ active: theme === 'light' }" @click="setTheme('light')">Light</button>
+            <button class="theme-opt" :class="{ active: theme === 'dark'  }" @click="setTheme('dark')">Dark</button>
+          </div>
+        </div>
+        <div class="dd-sep"></div>
+        <div class="dd-sec">Export</div>
+        <button class="dd-btn" @click="gearOpen=false; exportPng()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download PNG (current theme)
+        </button>
+        <div class="dd-sep"></div>
+        <button class="dd-btn danger" @click="gearOpen=false; resetAll()">
+          <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+          Reset all data
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STREET NAV -->
+<div class="street-nav">
+  <!-- preflop node -->
+  <div class="nav-node">
+    <button
+      class="nav-btn"
+      :class="{ active: currentNode === session.preflop }"
+      @click="navigate(session.preflop)"
+    >
+      <span class="nav-street-label">Preflop</span>
+      <span class="nav-board preflop-label">{{ session.preflop.position || 'BTN' }}</span>
+    </button>
+  </div>
+
+  <!-- flop + descendants -->
+  <template v-if="session.flop">
+    <span class="nav-chevron">›</span>
+    <div class="nav-node">
+      <button
+        class="nav-btn"
+        :class="{ active: currentNode === session.flop }"
+        @click="navigate(session.flop)"
+      >
+        <span class="nav-street-label">Flop</span>
+        <span class="nav-board">
+          <template v-for="c in session.flop.board" :key="c">
+            <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+          </template>
+        </span>
+      </button>
+    </div>
+
+    <!-- turn branches -->
+    <template v-for="(turn, ti) in session.flop.children" :key="ti">
+      <span class="nav-chevron">›</span>
+      <div class="nav-node">
+        <button
+          class="nav-btn"
+          :class="{ active: currentNode === turn }"
+          @click="navigate(turn)"
+        >
+          <span class="nav-street-label">Turn{{ session.flop.children.length > 1 ? ` (${ti+1})` : '' }}</span>
+          <span class="nav-board">
+            <template v-for="c in turn.board" :key="c">
+              <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+            </template>
+          </span>
+        </button>
+      </div>
+
+      <!-- river branches -->
+      <template v-for="(river, ri) in turn.children" :key="ri">
+        <span class="nav-chevron">›</span>
+        <div class="nav-node">
+          <button
+            class="nav-btn"
+            :class="{ active: currentNode === river }"
+            @click="navigate(river)"
+          >
+            <span class="nav-street-label">River{{ turn.children.length > 1 ? ` (${ri+1})` : '' }}</span>
+            <span class="nav-board">
+              <template v-for="c in river.board" :key="c">
+                <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+              </template>
+            </span>
+          </button>
+        </div>
+      </template>
+    </template>
+  </template>
+
+  <!-- add next street button -->
+  <div class="nav-actions">
+    <!-- node name editor (postflop) -->
+    <input
+      v-if="currentNode !== session.preflop"
+      class="node-name-inp"
+      type="text"
+      :value="currentNode.label"
+      @input="e => { currentNode.label = e.target.value; schedSave(); }"
+      placeholder="Label…"
+    />
+
+    <button class="nav-add-btn" @click="openAddModal" v-if="canAddChild">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      {{ nextStreetLabel }}
+    </button>
+
+    <button class="nav-del-btn" @click="deleteCurrentNode" v-if="currentNode !== session.preflop">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- GRID -->
+<div class="grid-section">
+  <div id="captureRoot">
+    <div class="grid">
+      <div
+        v-for="cell in cells"
+        :key="cell.key"
+        :id="'cell_' + cell.key"
+        class="cell"
+        :class="cellClass(cell.key)"
+        @mousedown.left="onCellMouseDown(cell.key, $event)"
+        @mouseup.left="onCellMouseUp(cell.key)"
+        @mouseleave="onCellMouseLeave(cell.key)"
+        @touchstart.prevent="onCellTouchStart(cell.key, $event)"
+        @touchend.prevent="onCellTouchEnd(cell.key)"
+        @touchmove.passive="onCellTouchMove(cell.key)"
+        @touchcancel="onCellTouchCancel(cell.key)"
+        @contextmenu.prevent="openCtx(cell.key)"
+      >
+        <div class="cell-bg">
+          <div
+            v-for="seg in cellSegments(cell.key)"
+            :key="seg.cid"
+            class="cell-seg"
+            :style="{ width: seg.w + '%', background: seg.color }"
+          ></div>
+          <div
+            v-if="cellUnfilled(cell.key) > 0"
+            class="cell-unfilled"
+            :style="{ width: cellUnfilled(cell.key) + '%' }"
+          ></div>
+        </div>
+        <span class="cell-label" :style="{ color: currentHS[cell.key]?.checked ? 'var(--gold)' : '' }">
+          {{ cell.label }}
+        </span>
+        <span v-if="currentHS[cell.key]?.checked" style="position:absolute;top:1px;right:2px;font-size:7px;color:var(--gold);">✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COLOR BAR -->
+<div class="color-section">
+  <div class="color-bar">
+    <div
+      v-for="col in currentColors"
+      :key="col.id"
+      class="color-btn"
+      :class="{ sel: selectedColor === col.id }"
+      :style="{ background: col.bright }"
+      :title="col.name"
+      @click="selectedColor = col.id; updateClearSelLabel()"
+    ></div>
+  </div>
+  <button class="clear-sel-btn" @click="clearSelected">Clear "{{ currentColorName }}"</button>
+  <span class="preset-badge" :class="currentPreset">{{ currentPreset }}</span>
+</div>
+
+<!-- STATS -->
+<div class="bottom-row" id="statsSection">
+  <div class="card">
+    <div class="card-title">Range Stats — {{ currentStreetLabel }}</div>
+    <div class="range-pct">{{ stats.pct }}%</div>
+    <div class="range-sub">{{ stats.combosLabel }}</div>
+    <div class="color-stats">
+      <div v-for="row in stats.byColor" :key="row.id" class="cstat">
+        <div class="cstat-dot" :style="{ background: row.bright }"></div>
+        <span class="cstat-name">{{ row.name }}</span>
+        <span class="cstat-val">{{ row.combos }} ({{ row.pct }}%)</span>
+      </div>
+    </div>
+    <div class="export-row">
+      <button class="export-btn" @click="exportPng">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PNG
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="hint-bar">Tap: assign color &nbsp;|&nbsp; Hold: set frequency &nbsp;|&nbsp; 🔒 = not in parent range</div>
+
+<!-- OVERLAY -->
+<div class="ctx-overlay" :class="{ open: ctxOpen }" @click="closeCtx"></div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx-menu" :class="{ open: ctxOpen }">
+  <div class="ctx-header">
+    <span class="ctx-title">{{ ctxTitle }}</span>
+    <button class="ctx-close-btn" @click="closeCtx">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="ctx-sec">Frequency per color (%)</div>
+  <div v-for="col in currentColors" :key="col.id" class="freq-row">
+    <div class="fdot" :style="{ background: col.bright }"></div>
+    <span class="fname">{{ col.name }}</span>
+    <input
+      class="finput"
+      :class="{ err: ctxErrId === col.id }"
+      type="number" min="0" max="100" step="5"
+      :value="ctxFreq(col.id)"
+      @input="e => setFreq(col.id, e.target.value, e.target)"
+    />
+    <span class="fpct">%</span>
+  </div>
+  <div class="fbar-wrap">
+    <div class="fbar">
+      <div
+        v-for="seg in ctxFbarSegs"
+        :key="seg.cid"
+        class="fbar-seg"
+        :style="{ width: seg.w + '%', background: seg.color }"
+      ></div>
+    </div>
+  </div>
+  <div class="freq-total-row">
+    <span class="freq-total-lbl">Total</span>
+    <span class="freq-total-val" :style="{ color: ctxTotalColor }">{{ ctxTotal }}%</span>
+    <span class="freq-error">{{ ctxError }}</span>
+  </div>
+  <div class="ctx-check-row" @click="toggleCheck">
+    <div class="ctx-cb">{{ ctxChecked ? '✓' : '' }}</div>
+    <span class="ctx-cb-lbl">Checkmark (gold text)</span>
+  </div>
+  <button class="ctx-rm" @click="removeHand">Remove this hand</button>
+</div>
+
+<!-- ADD NODE MODAL -->
+<div class="modal-overlay" v-if="addModal.open" @click.self="addModal.open = false">
+  <div class="modal">
+    <div class="modal-title">Add {{ addModal.streetName }}</div>
+
+    <div class="modal-label">Label (optional)</div>
+    <input class="modal-inp" type="text" v-model="addModal.label" :placeholder="addModal.streetName + ' branch'" />
+
+    <div class="modal-label">{{ addModal.cardCount === 3 ? 'Flop cards (3)' : 'Turn / River card (1)' }}</div>
+    <div class="card-picker">
+      <div class="card-slot" v-for="i in addModal.cardCount" :key="i">
+        <span class="card-slot-label">Card {{ i }}</span>
+        <input
+          class="card-inp"
+          :class="{ 'has-val': addModal.cards[i-1] }"
+          type="text"
+          maxlength="2"
+          v-model="addModal.cards[i-1]"
+          :placeholder="i === 1 ? 'As' : i === 2 ? 'Kh' : i === 3 ? '2c' : '7d'"
+          @input="addModal.cards[i-1] = $event.target.value.toUpperCase().replace(/[^AKQJT2-9CDHS]/gi,'')"
+        />
+      </div>
+    </div>
+    <div class="modal-hint">Rank: A K Q J T 9–2 &nbsp;|&nbsp; Suit: s h d c</div>
+    <div class="modal-err">{{ addModal.error }}</div>
+    <div class="modal-actions">
+      <button class="modal-btn" @click="addModal.open = false">Cancel</button>
+      <button class="modal-btn primary" @click="confirmAddNode">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" :class="{ show: toastShow }">{{ toastMsg }}</div>
+
+</div><!-- #app -->
+
+<script>
+const { createApp, reactive, computed, watch, onMounted } = Vue;
+
+/* ── CONSTANTS ── */
+const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+const POSITIONS = ['UTG','HJ','CO','BTN','SB','BB'];
+
+function makeColors(preset) {
+  if (preset === 'preflop') {
+    return [
+      { id:1, name:'5bet+',            bright:'#cc2255' },
+      { id:2, name:'4bet Allin',       bright:'#b090e0' },
+      { id:3, name:'4bet / 5bet fold', bright:'#ff5522' },
+      { id:4, name:'3bet call',        bright:'#4090ff' },
+      { id:5, name:'RFI / 3bet fold',  bright:'#f0c800' },
+      { id:6, name:'Call',             bright:'#30c890' },
+      { id:7, name:'None',             bright:'#606880' },
+    ];
+  }
+  // postflop
+  return [
+    { id:1, name:'Bet 150%+',  bright:'#cc2255' },
+    { id:2, name:'Bet 75%',    bright:'#ff5522' },
+    { id:3, name:'Bet 50%',    bright:'#f0c800' },
+    { id:4, name:'Bet 33%',    bright:'#4090ff' },
+    { id:5, name:'Check',      bright:'#30c890' },
+    { id:6, name:'Call',       bright:'#60d0a0' },
+    { id:7, name:'Fold',       bright:'#606880' },
+  ];
+}
+
+function makeHS() {
+  const hs = {};
+  RANKS.forEach((_,r) => RANKS.forEach((_,c) => {
+    hs[`${r}_${c}`] = { colors:{}, checked:false };
+  }));
+  return hs;
+}
+
+function hn(r, c) {
+  if (r === c) return RANKS[r] + RANKS[c];
+  if (r <  c) return RANKS[r] + RANKS[c] + 's';
+  return RANKS[c] + RANKS[r] + 'o';
+}
+function hc(r, c) { return r === c ? 6 : r < c ? 4 : 12; }
+function active(hs, k) { return Object.values(hs[k]?.colors || {}).some(v => v > 0); }
+
+const SUIT_MAP = { S:'card-s', H:'card-h', D:'card-d', C:'card-c' };
+function suitClass(card) {
+  const s = card ? card.slice(-1).toUpperCase() : '';
+  return SUIT_MAP[s] || '';
+}
+function formatCard(card) {
+  if (!card) return '';
+  const rank = card.slice(0, -1).toUpperCase()
+    .replace('S','♠').replace('H','♥').replace('D','♦').replace('C','♣');
+  // actually just replace the suit char
+  const r = card.slice(0,-1);
+  const s = card.slice(-1).toUpperCase();
+  const suits = { S:'♠', H:'♥', D:'♦', C:'♣' };
+  return r.toUpperCase() + (suits[s] || s);
+}
+
+/* ── VALID CARD ── */
+const VALID_RANKS_SET = new Set(['A','K','Q','J','T','2','3','4','5','6','7','8','9']);
+const VALID_SUITS_SET = new Set(['S','H','D','C']);
+function isValidCard(s) {
+  if (!s || s.length < 2) return false;
+  const r = s.slice(0,-1).toUpperCase();
+  const su = s.slice(-1).toUpperCase();
+  return VALID_RANKS_SET.has(r) && VALID_SUITS_SET.has(su);
+}
+
+/* ── MAKE NODE ── */
+function makeNode(street, board, label, preset) {
+  return { street, board, label, preset, hs: makeHS(), children: [], colors: makeColors(preset), position: null };
+}
+
+const LS_KEY = 'prt_v1';
+
+createApp({
+  setup() {
+
+    /* ── SESSION STATE ── */
+    const session = reactive({
+      preflop: {
+        street: 'preflop',
+        board: [],
+        label: 'Preflop',
+        preset: 'preflop',
+        hs: makeHS(),
+        children: [],      // [flopNode]
+        colors: makeColors('preflop'),
+        position: 'BTN',
+      }
+    });
+
+    const currentNode = reactive({ value: session.preflop });
+    const selectedColor = reactive({ value: 1 });
+    const theme = reactive({ value: 'dark' });
+    const gearOpen = reactive({ value: false });
+    const saveDotOn = reactive({ value: false });
+    const toastMsg = reactive({ value: '' });
+    const toastShow = reactive({ value: false });
+
+    // context menu
+    const ctxOpen = reactive({ value: false });
+    const ctxKey  = reactive({ value: null });
+    const ctxErrId = reactive({ value: null });
+    const ctxError = reactive({ value: '' });
+
+    // add modal
+    const addModal = reactive({
+      open: false,
+      streetName: '',
+      cardCount: 3,
+      cards: ['','',''],
+      label: '',
+      error: '',
+      parentNode: null,
+    });
+
+    // press tracking
+    const pressState = {};
+
+    /* ── HELPERS ── */
+    const node = () => currentNode.value;
+    const sel  = () => selectedColor.value;
+
+    const currentColors = computed(() => node().colors);
+    const currentPreset = computed(() => node().preset);
+    const currentHS     = computed(() => node().hs);
+
+    const currentColorName = computed(() => {
+      const col = node().colors.find(c => c.id === sel());
+      return col ? col.name : '';
+    });
+
+    const currentStreetLabel = computed(() => {
+      const n = node();
+      if (n.street === 'preflop') return `Preflop · ${n.position || 'BTN'}`;
+      const board = n.board.map(formatCard).join(' ');
+      return `${capitalize(n.street)} · ${board}`;
+    });
+
+    function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : ''; }
+
+    /* ── PARENT RANGE (for locking) ── */
+    function parentOf(target) {
+      // BFS to find parent
+      function search(node) {
+        if (!node) return null;
+        if (node === session.preflop) {
+          if (session.flop === target) return session.preflop;
+          if (session.flop) {
+            for (const turn of session.flop.children) {
+              if (turn === target) return session.flop;
+              for (const river of turn.children) {
+                if (river === target) return turn;
+              }
+            }
+          }
+        }
+        return null;
+      }
+      return search(session.preflop);
+    }
+
+    function isLockedInParent(k) {
+      const n = node();
+      if (n.street === 'preflop') return false;
+      const parent = parentOf(n);
+      if (!parent) return false;
+      return !active(parent.hs, k);
+    }
+
+    /* ── CELLS ── */
+    const cells = computed(() => {
+      const arr = [];
+      RANKS.forEach((_, ri) => RANKS.forEach((_, ci) => {
+        arr.push({ key: `${ri}_${ci}`, label: hn(ri, ci) });
+      }));
+      return arr;
+    });
+
+    function cellClass(k) {
+      const hs = currentHS.value;
+      const s  = hs[k];
+      const on = active(hs, k);
+      const locked = isLockedInParent(k);
+      if (locked) return 'locked';
+      if (!on) return 'off';
+      return s?.checked ? 'checked' : '';
+    }
+
+    function cellSegments(k) {
+      const hs = currentHS.value;
+      const s  = hs[k];
+      if (!s) return [];
+      const entries = Object.entries(s.colors).filter(([,v]) => v > 0);
+      if (!entries.length) return [];
+      return entries.map(([cid, val]) => ({
+        cid,
+        w: val,
+        color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
+      }));
+    }
+
+    function cellUnfilled(k) {
+      const hs = currentHS.value;
+      const s  = hs[k];
+      if (!s) return 0;
+      const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
+      return total < 100 ? (100 - total) : 0;
+    }
+
+    /* ── CLICK ── */
+    function handleClick(k) {
+      if (isLockedInParent(k)) return;
+      const hs = currentHS.value;
+      const s  = hs[k];
+      const c  = sel();
+
+      if (!active(hs, k)) {
+        s.colors = { [c]: 100 };
+      } else if ((s.colors[c] || 0) > 0) {
+        delete s.colors[c];
+      } else {
+        const existing = Object.keys(s.colors).map(Number);
+        const allIds   = [...existing, c];
+        const n        = allIds.length;
+        const base     = Math.floor(100 / n);
+        const rem      = 100 - base * n;
+        allIds.forEach((id, i) => { s.colors[id] = base + (i < rem ? 1 : 0); });
+      }
+      schedSave();
+    }
+
+    /* press state per key */
+    function onCellMouseDown(k, e) {
+      if (isLockedInParent(k)) return;
+      const el = document.getElementById('cell_' + k);
+      if (el) el.classList.add('pressing');
+      pressState[k] = {
+        timer: setTimeout(() => {
+          pressState[k].long = true;
+          if (el) el.classList.remove('pressing');
+          openCtx(k);
+        }, 500),
+        long: false
+      };
+    }
+    function onCellMouseUp(k) {
+      const ps = pressState[k];
+      if (!ps) return;
+      clearTimeout(ps.timer);
+      const el = document.getElementById('cell_' + k);
+      if (el) el.classList.remove('pressing');
+      if (!ps.long) handleClick(k);
+      delete pressState[k];
+    }
+    function onCellMouseLeave(k) {
+      const ps = pressState[k];
+      if (!ps) return;
+      clearTimeout(ps.timer);
+      const el = document.getElementById('cell_' + k);
+      if (el) el.classList.remove('pressing');
+      delete pressState[k];
+    }
+    function onCellTouchStart(k, e) {
+      if (isLockedInParent(k)) return;
+      const t = e.touches[0];
+      const el = document.getElementById('cell_' + k);
+      if (el) el.classList.add('pressing');
+      pressState[k] = {
+        timer: setTimeout(() => {
+          pressState[k].long = true;
+          if (el) el.classList.remove('pressing');
+          openCtx(k);
+        }, 500),
+        long: false
+      };
+    }
+    function onCellTouchEnd(k) {
+      const ps = pressState[k];
+      if (!ps) return;
+      clearTimeout(ps.timer);
+      const el = document.getElementById('cell_' + k);
+      if (el) el.classList.remove('pressing');
+      if (!ps.long) handleClick(k);
+      delete pressState[k];
+    }
+    function onCellTouchMove(k) {
+      const ps = pressState[k];
+      if (!ps) return;
+      clearTimeout(ps.timer);
+      const el = document.getElementById('cell_' + k);
+      if (el) el.classList.remove('pressing');
+      delete pressState[k];
+    }
+    function onCellTouchCancel(k) { onCellTouchMove(k); }
+
+    /* ── CONTEXT MENU ── */
+    const ctxTitle   = computed(() => {
+      if (!ctxKey.value) return '';
+      const [ri,ci] = ctxKey.value.split('_').map(Number);
+      return hn(ri,ci) + ' — frequency';
+    });
+    const ctxChecked = computed(() => currentHS.value[ctxKey.value]?.checked || false);
+    const ctxFbarSegs = computed(() => {
+      if (!ctxKey.value) return [];
+      const s = currentHS.value[ctxKey.value];
+      if (!s) return [];
+      const entries = Object.entries(s.colors).filter(([,v]) => v > 0);
+      const total   = entries.reduce((a,[,v]) => a+v, 0);
+      if (!total) return [];
+      return entries.map(([cid,val]) => ({
+        cid,
+        w: (val / total * 100),
+        color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
+      }));
+    });
+    const ctxTotal = computed(() => {
+      if (!ctxKey.value) return 0;
+      const s = currentHS.value[ctxKey.value];
+      if (!s) return 0;
+      return Object.values(s.colors).reduce((a,v) => a+v, 0);
+    });
+    const ctxTotalColor = computed(() =>
+      (ctxTotal.value === 0 || ctxTotal.value === 100) ? 'var(--text)' : '#f0c800'
+    );
+
+    function ctxFreq(cid) {
+      if (!ctxKey.value) return 0;
+      return currentHS.value[ctxKey.value]?.colors[cid] || 0;
+    }
+
+    function openCtx(k) {
+      if (isLockedInParent(k)) return;
+      const hs = currentHS.value;
+      if (!active(hs, k)) {
+        hs[k].colors = { [sel()]: 100 };
+      }
+      ctxKey.value  = k;
+      ctxError.value = '';
+      ctxErrId.value = null;
+      ctxOpen.value = true;
+      schedSave();
+    }
+    function closeCtx() {
+      ctxOpen.value = false;
+      ctxKey.value  = null;
+      ctxErrId.value = null;
+      ctxError.value = '';
+    }
+
+    function setFreq(cid, rawVal, inputEl) {
+      const k   = ctxKey.value;
+      if (!k) return;
+      const s   = currentHS.value[k];
+      const val = Math.max(0, Math.min(100, parseInt(rawVal) || 0));
+      const prev = s.colors[cid] || 0;
+
+      if (val === 0) delete s.colors[cid];
+      else s.colors[cid] = val;
+
+      const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
+      if (total > 100) {
+        if (prev === 0) delete s.colors[cid]; else s.colors[cid] = prev;
+        ctxErrId.value = cid;
+        ctxError.value = `Total ${total}% — max 100%`;
+        return;
+      }
+      ctxErrId.value = null;
+      ctxError.value = '';
+      schedSave();
+    }
+
+    function toggleCheck() {
+      const k = ctxKey.value;
+      if (!k) return;
+      const s = currentHS.value[k];
+      s.checked = !s.checked;
+      schedSave();
+    }
+
+    function removeHand() {
+      const k = ctxKey.value;
+      if (!k) return;
+      currentHS.value[k] = { colors:{}, checked:false };
+      closeCtx();
+      schedSave();
+    }
+
+    /* ── STATS ── */
+    const stats = computed(() => {
+      const hs     = currentHS.value;
+      const colors = node().colors;
+      const n      = node();
+      const isPost = n.street !== 'preflop';
+      const parent = isPost ? parentOf(n) : null;
+
+      // total parent combos (basis for postflop %)
+      let parentTotal = 0;
+      if (parent) {
+        RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
+          const k = `${ri}_${ci}`;
+          const ps = parent.hs[k];
+          const combos = hc(ri,ci);
+          const sum = Object.values(ps.colors||{}).reduce((a,v)=>a+v,0);
+          if (sum) parentTotal += (sum / 100) * combos;
+        }));
+      }
+      const basis = isPost ? (parentTotal || 1326) : 1326;
+
+      const by = {};
+      colors.forEach(c => by[c.id] = 0);
+      let overall = 0;
+
+      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
+        const k       = `${ri}_${ci}`;
+        const s       = hs[k];
+        const combos  = hc(ri,ci);
+        const entries = Object.entries(s.colors||{}).filter(([,v]) => v > 0);
+        const sum     = entries.reduce((a,[,v]) => a+v, 0);
+        if (!sum) return;
+        entries.forEach(([cid,val]) => {
+          const eff = (val/sum) * combos;
+          by[parseInt(cid)] = (by[parseInt(cid)] || 0) + eff;
+          overall += eff;
+        });
+      }));
+
+      const pct = (overall / basis * 100).toFixed(1);
+      const combosLabel = isPost
+        ? `${overall.toFixed(1)} / ${basis.toFixed(1)} combos (of parent range)`
+        : `${overall.toFixed(1)} / 1326 combos`;
+
+      const byColor = colors
+        .map(c => ({
+          id: c.id,
+          bright: c.bright,
+          name: c.name,
+          combos: (by[c.id]||0).toFixed(1),
+          pct: ((by[c.id]||0) / basis * 100).toFixed(1),
+        }))
+        .filter(r => parseFloat(r.combos) >= 0.05);
+
+      return { pct, combosLabel, byColor };
+    });
+
+    /* ── CLEAR OPS ── */
+    function clearCurrent() {
+      const hs = currentHS.value;
+      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
+        hs[`${ri}_${ci}`] = { colors:{}, checked:false };
+      }));
+      schedSave();
+      showToast('Cleared');
+    }
+
+    function clearSelected() {
+      const hs  = currentHS.value;
+      const cid = sel();
+      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
+        const k = `${ri}_${ci}`;
+        if ((hs[k].colors[cid] || 0) > 0) delete hs[k].colors[cid];
+      }));
+      schedSave();
+    }
+
+    function updateClearSelLabel() {}
+
+    /* ── NAVIGATION ── */
+    const session_flop = computed(() => session.preflop.children[0] || null);
+    // expose as session.flop for template
+    Object.defineProperty(session, 'flop', {
+      get: () => session.preflop.children[0] || null,
+      enumerable: true,
+    });
+
+    function navigate(n) {
+      currentNode.value = n;
+      // reset selected color to first of that preset
+      selectedColor.value = 1;
+    }
+
+    /* ── ADD NODE ── */
+    const canAddChild = computed(() => {
+      const n = node();
+      if (n.street === 'preflop') return !session.flop;     // can add flop only once
+      if (n.street === 'flop')    return true;               // can add multiple turns
+      if (n.street === 'turn')    return true;               // can add multiple rivers
+      return false;
+    });
+
+    const nextStreetLabel = computed(() => {
+      const n = node();
+      if (n.street === 'preflop') return '+ Flop';
+      if (n.street === 'flop')    return '+ Turn';
+      if (n.street === 'turn')    return '+ River';
+      return '';
+    });
+
+    function streetAfter(s) {
+      const map = { preflop:'flop', flop:'turn', turn:'river' };
+      return map[s] || '';
+    }
+
+    function openAddModal() {
+      const n = node();
+      const next = streetAfter(n.street);
+      addModal.streetName = capitalize(next);
+      addModal.cardCount  = next === 'flop' ? 3 : 1;
+      addModal.cards      = ['','',''];
+      addModal.label      = '';
+      addModal.error      = '';
+      addModal.parentNode = n;
+      addModal.open       = true;
+    }
+
+    function confirmAddNode() {
+      const count = addModal.cardCount;
+      const cards = addModal.cards.slice(0, count);
+
+      // validate
+      for (let i = 0; i < count; i++) {
+        if (!isValidCard(cards[i])) {
+          addModal.error = `Card ${i+1} is invalid. Use format like As, Kh, 2c`;
+          return;
+        }
+      }
+
+      const street  = streetAfter(addModal.parentNode.street);
+      const label   = addModal.label || addModal.streetName;
+      const newNode = makeNode(street, cards.slice(0, count), label, 'postflop');
+      addModal.parentNode.children.push(newNode);
+      addModal.open = false;
+      navigate(newNode);
+      schedSave();
+      showToast(`${addModal.streetName} added`);
+    }
+
+    function deleteCurrentNode() {
+      const n = node();
+      if (n.street === 'preflop') return;
+
+      if (!confirm(`Delete "${n.label || n.street}" and all its children?`)) return;
+
+      // find parent and remove
+      const pf = session.preflop;
+      if (pf.children[0] === n) {
+        pf.children.splice(0, 1);
+        navigate(pf);
+        schedSave();
+        return;
+      }
+      const flop = pf.children[0];
+      if (flop) {
+        const ti = flop.children.indexOf(n);
+        if (ti >= 0) {
+          flop.children.splice(ti, 1);
+          navigate(flop);
+          schedSave();
+          return;
+        }
+        for (const turn of flop.children) {
+          const ri = turn.children.indexOf(n);
+          if (ri >= 0) {
+            turn.children.splice(ri, 1);
+            navigate(turn);
+            schedSave();
+            return;
+          }
+        }
+      }
+    }
+
+    /* ── THEME ── */
+    function setTheme(t) {
+      theme.value = t;
+      document.documentElement.dataset.theme = t;
+      const dark = {
+        '--bg':'#0f1117','--surface':'#1a1d27','--s2':'#22253a','--s3':'#2a2e45',
+        '--border':'#2e3350','--text':'#e8eaf0','--t2':'#8a90b0','--t3':'#555a7a',
+        '--gold':'#f0c040','--cell-off':'#1e2130','--cell-fg':'#3a4060','--cell-bd':'#252840',
+        '--cell-lock':'#141620','--cell-lock-fg':'#2a2d40',
+        '--unfill':'rgba(255,255,255,0.08)','--shadow':'rgba(0,0,0,0.65)','--cap-bg':'#0f1117',
+        '--accent':'#4090ff',
+      };
+      const light = {
+        '--bg':'#eef0f8','--surface':'#ffffff','--s2':'#e4e6f4','--s3':'#d4d8ec',
+        '--border':'#bcc0d8','--text':'#181b2c','--t2':'#4a5078','--t3':'#8890b0',
+        '--gold':'#a06800','--cell-off':'#d8daea','--cell-fg':'#8890b0','--cell-bd':'#c0c4d8',
+        '--cell-lock':'#c4c8dc','--cell-lock-fg':'#a0a4bc',
+        '--unfill':'rgba(0,0,0,0.14)','--shadow':'rgba(0,0,0,0.20)','--cap-bg':'#eef0f8',
+        '--accent':'#2060d0',
+      };
+      const tokens = t === 'light' ? light : dark;
+      Object.entries(tokens).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
+      const meta = document.getElementById('metaThemeColor');
+      if (meta) meta.content = t === 'light' ? '#eef0f8' : '#0f1117';
+      schedSave();
+    }
+
+    function toggleGear() { gearOpen.value = !gearOpen.value; }
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.gear-wrap')) gearOpen.value = false;
+    });
+
+    /* ── SAVE / LOAD ── */
+    let _saveTimer;
+    function schedSave() {
+      clearTimeout(_saveTimer);
+      _saveTimer = setTimeout(doSave, 500);
+    }
+
+    function doSave() {
+      try {
+        const data = {
+          theme: theme.value,
+          session: serializeNode(session.preflop),
+        };
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+        saveDotOn.value = true;
+        clearTimeout(saveDotOn._t);
+        saveDotOn._t = setTimeout(() => saveDotOn.value = false, 1300);
+      } catch(e) {}
+    }
+
+    function serializeNode(n) {
+      return {
+        street: n.street,
+        board: n.board,
+        label: n.label,
+        preset: n.preset,
+        position: n.position,
+        colors: n.colors.map(c => ({ ...c })),
+        hs: serializeHS(n.hs),
+        children: (n.children || []).map(serializeNode),
+      };
+    }
+
+    function serializeHS(hs) {
+      const out = {};
+      Object.entries(hs).forEach(([k,v]) => {
+        if (Object.keys(v.colors).length || v.checked) out[k] = { colors: {...v.colors}, checked: v.checked };
+      });
+      return out;
+    }
+
+    function loadSave() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data.theme) setTheme(data.theme);
+        if (data.session) {
+          deserializeInto(session.preflop, data.session);
+        }
+      } catch(e) {}
+    }
+
+    function deserializeInto(target, src) {
+      target.street   = src.street   || target.street;
+      target.board    = src.board    || [];
+      target.label    = src.label    || '';
+      target.preset   = src.preset   || target.preset;
+      target.position = src.position || 'BTN';
+      if (src.colors) src.colors.forEach((c,i) => { if (target.colors[i]) Object.assign(target.colors[i], c); });
+      if (src.hs) {
+        Object.entries(src.hs).forEach(([k,v]) => {
+          if (target.hs[k]) target.hs[k] = { colors: v.colors || {}, checked: !!v.checked };
+        });
+      }
+      target.children = [];
+      if (src.children) {
+        src.children.forEach(childSrc => {
+          const child = makeNode(childSrc.street, childSrc.board, childSrc.label, childSrc.preset || 'postflop');
+          deserializeInto(child, childSrc);
+          target.children.push(child);
+        });
+      }
+    }
+
+    /* ── RESET ── */
+    function resetAll() {
+      if (!confirm('Reset all data to defaults?')) return;
+      const t = theme.value;
+      // clear children
+      session.preflop.children.splice(0);
+      // reset hs
+      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
+        session.preflop.hs[`${ri}_${ci}`] = { colors:{}, checked:false };
+      }));
+      session.preflop.colors = makeColors('preflop');
+      session.preflop.position = 'BTN';
+      currentNode.value = session.preflop;
+      selectedColor.value = 1;
+      try { localStorage.removeItem(LS_KEY); } catch(e) {}
+      showToast('Reset to defaults');
+    }
+
+    /* ── EXPORT ── */
+    async function exportPng() {
+      showToast('Generating image…');
+      try {
+        const t   = theme.value;
+        const bg  = t === 'light' ? '#eef0f8' : '#0f1117';
+        const grid  = document.getElementById('captureRoot');
+        const stats_el = document.getElementById('statsSection');
+        const wrap = document.createElement('div');
+        wrap.style.cssText =
+          `position:fixed;left:-9999px;top:0;background:${bg};padding:14px;border-radius:8px;` +
+          `width:${grid.offsetWidth+28}px;`;
+        wrap.appendChild(grid.cloneNode(true));
+        const gap = document.createElement('div');
+        gap.style.height = '12px';
+        wrap.appendChild(gap);
+        wrap.appendChild(stats_el.cloneNode(true));
+        document.body.appendChild(wrap);
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const canvas = await html2canvas(wrap, { backgroundColor:bg, scale:2, useCORS:true, logging:false });
+        document.body.removeChild(wrap);
+        const a = document.createElement('a');
+        a.download = `poker-range-${currentStreetLabel.value.replace(/[^a-z0-9]/gi,'-')}.png`;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+        showToast('PNG downloaded ✓');
+      } catch(err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+
+    /* ── TOAST ── */
+    let _toastTimer;
+    function showToast(msg) {
+      toastMsg.value  = msg;
+      toastShow.value = true;
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => toastShow.value = false, 2800);
+    }
+
+    /* ── INIT ── */
+    onMounted(() => {
+      setTheme('dark');
+      loadSave();
+    });
+
+    return {
+      session,
+      currentNode: computed(() => currentNode.value),
+      selectedColor: computed({ get: () => selectedColor.value, set: v => selectedColor.value = v }),
+      theme: computed(() => theme.value),
+      gearOpen: computed(() => gearOpen.value),
+      saveDotOn: computed(() => saveDotOn.value),
+      toastMsg: computed(() => toastMsg.value),
+      toastShow: computed(() => toastShow.value),
+      ctxOpen: computed(() => ctxOpen.value),
+      ctxKey: computed(() => ctxKey.value),
+      ctxTitle,
+      ctxChecked,
+      ctxFbarSegs,
+      ctxTotal,
+      ctxTotalColor,
+      ctxErrId: computed(() => ctxErrId.value),
+      ctxError: computed(() => ctxError.value),
+      addModal,
+      cells,
+      currentColors,
+      currentPreset,
+      currentHS,
+      currentColorName,
+      currentStreetLabel,
+      stats,
+      canAddChild,
+      nextStreetLabel,
+      POSITIONS,
+      // methods
+      navigate,
+      openCtx,
+      closeCtx,
+      ctxFreq,
+      setFreq,
+      toggleCheck,
+      removeHand,
+      cellClass,
+      cellSegments,
+      cellUnfilled,
+      onCellMouseDown,
+      onCellMouseUp,
+      onCellMouseLeave,
+      onCellTouchStart,
+      onCellTouchEnd,
+      onCellTouchMove,
+      onCellTouchCancel,
+      clearCurrent,
+      clearSelected,
+      updateClearSelLabel,
+      openAddModal,
+      confirmAddNode,
+      deleteCurrentNode,
+      setTheme,
+      toggleGear,
+      resetAll,
+      exportPng,
+      showToast,
+      schedSave,
+      suitClass,
+      formatCard,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
