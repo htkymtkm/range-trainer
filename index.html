@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Poker Range Tree</title>
+<title>Poker Range Trainer</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Range Tree">
+<meta name="apple-mobile-web-app-title" content="Range Trainer">
 <meta name="theme-color" content="#0f1117" id="metaThemeColor">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -867,33 +867,7 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
   color: var(--text);
 }
 
-/* ── POSITION BADGE ── */
-.pos-row {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.pos-btn {
-  padding: 3px 9px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--t2);
-  font-size: 11px;
-  cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  transition: background .12s, color .12s, border-color .12s;
-}
-.pos-btn:hover { background: var(--s2); }
-.pos-btn.active { background: var(--s3); border-color: var(--t2); color: var(--text); }
-.pos-label {
-  font-size: 10px;
-  color: var(--t3);
-  margin-right: 2px;
-}
+
 </style>
 </head>
 <body>
@@ -902,21 +876,9 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
 <!-- TITLEBAR -->
 <div class="titlebar">
   <span class="title">
-    RANGE TREE
+    RANGE TRAINER
     <span class="save-dot" :class="{ on: saveDotOn }"></span>
   </span>
-
-  <!-- position selector (preflop only) -->
-  <div class="pos-row" v-if="currentNode === session.preflop" style="margin-bottom:0;margin-right:4px;">
-    <span class="pos-label">POS</span>
-    <button
-      v-for="pos in POSITIONS"
-      :key="pos"
-      class="pos-btn"
-      :class="{ active: session.preflop.position === pos }"
-      @click="session.preflop.position = pos; schedSave()"
-    >{{ pos }}</button>
-  </div>
 
   <div style="display:flex;gap:5px;align-items:center;">
     <button class="icon-btn danger" title="Clear current street" @click="clearCurrent">
@@ -969,7 +931,6 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
       @click="navigate(session.preflop)"
     >
       <span class="nav-street-label">Preflop</span>
-      <span class="nav-board preflop-label">{{ session.preflop.position || 'BTN' }}</span>
     </button>
   </div>
 
@@ -1172,6 +1133,7 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
   <div class="freq-total-row">
     <span class="freq-total-lbl">Total</span>
     <span class="freq-total-val" :style="{ color: ctxTotalColor }">{{ ctxTotal }}%</span>
+    <span style="font-size:10px;color:var(--t3);margin-left:2px;" v-if="ctxMaxFreq < 100">/ {{ ctxMaxFreq }}% max</span>
     <span class="freq-error">{{ ctxError }}</span>
   </div>
   <div class="ctx-check-row" @click="toggleCheck">
@@ -1223,7 +1185,6 @@ const { createApp, reactive, computed, watch, onMounted } = Vue;
 
 /* ── CONSTANTS ── */
 const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
-const POSITIONS = ['UTG','HJ','CO','BTN','SB','BB'];
 
 function makeColors(preset) {
   if (preset === 'preflop') {
@@ -1237,15 +1198,11 @@ function makeColors(preset) {
       { id:7, name:'None',             bright:'#606880' },
     ];
   }
-  // postflop
+  // postflop — シンプル3色（プリフロップ色味を踏襲）
   return [
-    { id:1, name:'Bet 150%+',  bright:'#cc2255' },
-    { id:2, name:'Bet 75%',    bright:'#ff5522' },
-    { id:3, name:'Bet 50%',    bright:'#f0c800' },
-    { id:4, name:'Bet 33%',    bright:'#4090ff' },
-    { id:5, name:'Check',      bright:'#30c890' },
-    { id:6, name:'Call',       bright:'#60d0a0' },
-    { id:7, name:'Fold',       bright:'#606880' },
+    { id:1, name:'Bet',        bright:'#e03060' },  // preflop 赤系に近い鮮やかな赤
+    { id:2, name:'Check / Call', bright:'#30c890' },  // preflop Call の緑をそのまま流用
+    { id:3, name:'Fold',       bright:'#555a7a' },  // preflop None のグレーより少し明るめ
   ];
 }
 
@@ -1311,7 +1268,6 @@ createApp({
         hs: makeHS(),
         children: [],      // [flopNode]
         colors: makeColors('preflop'),
-        position: 'BTN',
       }
     });
 
@@ -1358,7 +1314,7 @@ createApp({
 
     const currentStreetLabel = computed(() => {
       const n = node();
-      if (n.street === 'preflop') return `Preflop · ${n.position || 'BTN'}`;
+      if (n.street === 'preflop') return 'Preflop';
       const board = n.board.map(formatCard).join(' ');
       return `${capitalize(n.street)} · ${board}`;
     });
@@ -1392,6 +1348,17 @@ createApp({
       const parent = parentOf(n);
       if (!parent) return false;
       return !active(parent.hs, k);
+    }
+
+    // 親ノードでのそのセルの合計割当%（ポストフロップの上限）
+    function parentMaxFreq(k) {
+      const n = node();
+      if (n.street === 'preflop') return 100;
+      const parent = parentOf(n);
+      if (!parent) return 100;
+      const s = parent.hs[k];
+      if (!s) return 0;
+      return Object.values(s.colors).reduce((a, v) => a + v, 0);
     }
 
     /* ── CELLS ── */
@@ -1437,20 +1404,24 @@ createApp({
     /* ── CLICK ── */
     function handleClick(k) {
       if (isLockedInParent(k)) return;
-      const hs = currentHS.value;
-      const s  = hs[k];
-      const c  = sel();
+      const hs    = currentHS.value;
+      const s     = hs[k];
+      const c     = sel();
+      const maxPct = parentMaxFreq(k); // 親の割当%が上限
 
       if (!active(hs, k)) {
-        s.colors = { [c]: 100 };
+        // 初回割当：親の上限%で入れる
+        s.colors = { [c]: maxPct };
       } else if ((s.colors[c] || 0) > 0) {
+        // 同色タップ → 削除
         delete s.colors[c];
       } else {
+        // 別色追加：現在の合計が上限以内なら均等分割して追加
         const existing = Object.keys(s.colors).map(Number);
         const allIds   = [...existing, c];
         const n        = allIds.length;
-        const base     = Math.floor(100 / n);
-        const rem      = 100 - base * n;
+        const base     = Math.floor(maxPct / n);
+        const rem      = maxPct - base * n;
         allIds.forEach((id, i) => { s.colors[id] = base + (i < rem ? 1 : 0); });
       }
       schedSave();
@@ -1546,9 +1517,18 @@ createApp({
       if (!s) return 0;
       return Object.values(s.colors).reduce((a,v) => a+v, 0);
     });
-    const ctxTotalColor = computed(() =>
-      (ctxTotal.value === 0 || ctxTotal.value === 100) ? 'var(--text)' : '#f0c800'
-    );
+    // このセルに割り当てられる上限%（親ノード由来）
+    const ctxMaxFreq = computed(() => {
+      if (!ctxKey.value) return 100;
+      return parentMaxFreq(ctxKey.value);
+    });
+    const ctxTotalColor = computed(() => {
+      const t = ctxTotal.value;
+      const m = ctxMaxFreq.value;
+      if (t === 0 || t === m) return 'var(--text)';
+      if (t > m) return '#ff5522';
+      return '#f0c800';
+    });
 
     function ctxFreq(cid) {
       if (!ctxKey.value) return 0;
@@ -1559,7 +1539,8 @@ createApp({
       if (isLockedInParent(k)) return;
       const hs = currentHS.value;
       if (!active(hs, k)) {
-        hs[k].colors = { [sel()]: 100 };
+        const maxPct = parentMaxFreq(k);
+        hs[k].colors = { [sel()]: maxPct };
       }
       ctxKey.value  = k;
       ctxError.value = '';
@@ -1575,20 +1556,21 @@ createApp({
     }
 
     function setFreq(cid, rawVal, inputEl) {
-      const k   = ctxKey.value;
+      const k      = ctxKey.value;
       if (!k) return;
-      const s   = currentHS.value[k];
-      const val = Math.max(0, Math.min(100, parseInt(rawVal) || 0));
-      const prev = s.colors[cid] || 0;
+      const s      = currentHS.value[k];
+      const maxPct = parentMaxFreq(k);
+      const val    = Math.max(0, Math.min(maxPct, parseInt(rawVal) || 0));
+      const prev   = s.colors[cid] || 0;
 
       if (val === 0) delete s.colors[cid];
       else s.colors[cid] = val;
 
       const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
-      if (total > 100) {
+      if (total > maxPct) {
         if (prev === 0) delete s.colors[cid]; else s.colors[cid] = prev;
         ctxErrId.value = cid;
-        ctxError.value = `Total ${total}% — max 100%`;
+        ctxError.value = `Total ${total}% — max ${maxPct}%`;
         return;
       }
       ctxErrId.value = null;
@@ -1985,6 +1967,7 @@ createApp({
       ctxTotalColor,
       ctxErrId: computed(() => ctxErrId.value),
       ctxError: computed(() => ctxError.value),
+      ctxMaxFreq,
       addModal,
       cells,
       currentColors,
@@ -1995,7 +1978,6 @@ createApp({
       stats,
       canAddChild,
       nextStreetLabel,
-      POSITIONS,
       // methods
       navigate,
       openCtx,
