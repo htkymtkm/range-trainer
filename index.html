@@ -1381,24 +1381,26 @@ createApp({
     }
 
     function cellSegments(k) {
-      const hs = currentHS.value;
-      const s  = hs[k];
+      const hs     = currentHS.value;
+      const s      = hs[k];
       if (!s) return [];
       const entries = Object.entries(s.colors).filter(([,v]) => v > 0);
       if (!entries.length) return [];
+      const maxPct = parentMaxFreq(k);  // 親の割当%が視覚的な100%
       return entries.map(([cid, val]) => ({
         cid,
-        w: val,
+        w: (val / maxPct * 100),        // maxPct を100%として描画
         color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
       }));
     }
 
     function cellUnfilled(k) {
-      const hs = currentHS.value;
-      const s  = hs[k];
+      const hs    = currentHS.value;
+      const s     = hs[k];
       if (!s) return 0;
-      const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
-      return total < 100 ? (100 - total) : 0;
+      const maxPct = parentMaxFreq(k);  // 親の割当%が上限
+      const total  = Object.values(s.colors).reduce((a,v) => a+v, 0);
+      return total < maxPct ? (maxPct - total) : 0;
     }
 
     /* ── CLICK ── */
