@@ -1361,11 +1361,14 @@ function makeColors(preset) {
       { id:7, name:'None',             bright:'#606880' },
     ];
   }
-  // postflop — シンプル3色（プリフロップ色味を踏襲）
+  // postflop — 6色
   return [
-    { id:1, name:'Bet',        bright:'#e03060' },  // preflop 赤系に近い鮮やかな赤
-    { id:2, name:'Check / Call', bright:'#30c890' },  // preflop Call の緑をそのまま流用
-    { id:3, name:'Fold',       bright:'#555a7a' },  // preflop None のグレーより少し明るめ
+    { id:1, name:'Low size',     bright:'#f0c800' },  // 黄
+    { id:2, name:'Middle size',  bright:'#ff5522' },  // オレンジ
+    { id:3, name:'Large size',   bright:'#e03060' },  // 赤
+    { id:4, name:'Over size',    bright:'#b090e0' },  // 紫
+    { id:5, name:'Check / Call', bright:'#30c890' },  // 緑
+    { id:6, name:'None',         bright:'#555a7a' },  // グレー
   ];
 }
 
