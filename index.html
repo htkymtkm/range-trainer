@@ -389,6 +389,73 @@ body {
 .preset-badge.preflop { border-color: #405080; color: #6080c0; }
 .preset-badge.postflop { border-color: #305040; color: #50a070; }
 
+/* ── INHERIT BUTTON ── */
+.inherit-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--t3);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
+  flex-shrink: 0;
+}
+.inherit-btn:hover { background: var(--s2); color: var(--t2); }
+.inherit-btn.filtered {
+  border-color: #405a80;
+  color: #6090c0;
+  background: rgba(64,144,255,0.08);
+}
+.inherit-btn.filtered:hover { background: rgba(64,144,255,0.15); }
+
+/* ── INHERIT CHECK LIST ── */
+.inherit-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.inherit-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  opacity: 0.5;
+}
+.inherit-check-row.on {
+  opacity: 1;
+  border-color: var(--t3);
+}
+.inherit-check-row:hover { background: var(--s3); }
+.inherit-check-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.inherit-check-name {
+  font-size: 12px;
+  color: var(--t2);
+  flex: 1;
+}
+.inherit-check-row.on .inherit-check-name { color: var(--text); }
+.inherit-check-mark {
+  font-size: 12px;
+  color: var(--gold);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 /* ── STATS CARD ── */
 .bottom-row { margin-bottom: 8px; }
 .card {
@@ -1188,6 +1255,28 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
     ></div>
   </div>
   <button class="clear-sel-btn" @click="clearSelected">Clear "{{ currentColorName }}"</button>
+
+  <!-- Inherit ボタン（ポストフロップのみ） -->
+  <button
+    v-if="currentNode !== session.preflop"
+    class="inherit-btn"
+    :class="{ filtered: isInheritFiltered }"
+    @click="openInheritModal"
+  >
+    <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+    </svg>
+    Inherit
+    <span v-if="isInheritFiltered" style="display:flex;gap:2px;align-items:center;margin-left:1px;">
+      <span
+        v-for="col in inheritDots"
+        :key="col"
+        style="width:6px;height:6px;border-radius:50%;flex-shrink:0;"
+        :style="{ background: col }"
+      ></span>
+    </span>
+  </button>
+
   <span class="preset-badge" :class="currentPreset">{{ currentPreset }}</span>
 </div>
 
@@ -1267,9 +1356,6 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
   <div class="modal">
     <div class="modal-title">Add {{ addModal.streetName }}</div>
 
-    <div class="modal-label">Label (optional)</div>
-    <input class="modal-inp" type="text" v-model="addModal.label" :placeholder="addModal.streetName + ' branch'" />
-
     <div class="modal-label">{{ addModal.cardCount === 3 ? 'Flop cards (3)' : 'Turn / River card (1)' }}</div>
     <div class="card-picker">
       <div class="card-slot" v-for="i in addModal.cardCount" :key="i">
@@ -1286,10 +1372,54 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
       </div>
     </div>
     <div class="modal-hint">Rank: A K Q J T 9–2 &nbsp;|&nbsp; Suit: s h d c</div>
+
+    <!-- Inherit チェックリスト -->
+    <div class="modal-label" style="margin-top:10px;">Inherit from {{ addModal.parentNode?.street || 'parent' }}</div>
+    <div class="inherit-check-list">
+      <div
+        v-for="col in (addModal.parentNode?.colors || [])"
+        :key="col.id"
+        class="inherit-check-row"
+        :class="{ on: addModal.inheritIds.includes(col.id) }"
+        @click="addModal.inheritIds.includes(col.id)
+          ? addModal.inheritIds.splice(addModal.inheritIds.indexOf(col.id), 1)
+          : addModal.inheritIds.push(col.id)"
+      >
+        <span class="inherit-check-dot" :style="{ background: col.bright }"></span>
+        <span class="inherit-check-name">{{ col.name }}</span>
+        <span class="inherit-check-mark">{{ addModal.inheritIds.includes(col.id) ? '✓' : '' }}</span>
+      </div>
+    </div>
+
     <div class="modal-err">{{ addModal.error }}</div>
     <div class="modal-actions">
       <button class="modal-btn" @click="addModal.open = false">Cancel</button>
       <button class="modal-btn primary" @click="confirmAddNode">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- INHERIT MODAL -->
+<div class="modal-overlay" v-if="inheritModal.open" @click.self="inheritModal.open = false">
+  <div class="modal">
+    <div class="modal-title">Inherit from parent</div>
+    <div class="modal-label" style="margin-bottom:8px;">選択したアクションのみ次のストリートに引き継ぎます</div>
+    <div class="inherit-check-list">
+      <div
+        v-for="col in (parentOf(currentNode)?.colors || [])"
+        :key="col.id"
+        class="inherit-check-row"
+        :class="{ on: inheritModal.inheritIds.includes(col.id) }"
+        @click="toggleInheritId(col.id)"
+      >
+        <span class="inherit-check-dot" :style="{ background: col.bright }"></span>
+        <span class="inherit-check-name">{{ col.name }}</span>
+        <span class="inherit-check-mark">{{ inheritModal.inheritIds.includes(col.id) ? '✓' : '' }}</span>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="modal-btn" @click="inheritModal.open = false">Cancel</button>
+      <button class="modal-btn primary" @click="confirmInherit">Apply</button>
     </div>
   </div>
 </div>
@@ -1418,7 +1548,8 @@ function isValidCard(s) {
 
 /* ── MAKE NODE ── */
 function makeNode(street, board, label, preset) {
-  return { street, board, label, preset, hs: makeHS(), children: [], colors: makeColors(preset), position: null };
+  return { street, board, label, preset, hs: makeHS(), children: [], colors: makeColors(preset), position: null, inheritColors: null };
+  // inheritColors: null = 全引き継ぎ, [1,5,6] = 指定カラーIDのみ
 }
 
 const LS_KEY = 'prt_v1';
@@ -1462,6 +1593,13 @@ createApp({
       label: '',
       error: '',
       parentNode: null,
+      inheritIds: [],      // 選択中のカラーID（空=全選択）
+    });
+
+    // inherit編集モーダル
+    const inheritModal = reactive({
+      open: false,
+      inheritIds: [],
     });
 
     // press tracking
@@ -1495,10 +1633,11 @@ createApp({
       if (n.street === 'preflop') return false;
       const parent = parentOf(n);
       if (!parent) return false;
-      return !active(parent.hs, k);
+      // inheritColorsを考慮した有効な親%が0ならロック
+      return parentMaxFreq(k) <= 0;
     }
 
-    // 親ノードでのそのセルの合計割当%（ポストフロップの上限）
+    // 親ノードでのそのセルの合計割当%（inheritColorsでフィルター後）
     function parentMaxFreq(k) {
       const n = node();
       if (n.street === 'preflop') return 100;
@@ -1506,7 +1645,16 @@ createApp({
       if (!parent) return 100;
       const s = parent.hs[k];
       if (!s) return 0;
-      return Object.values(s.colors).reduce((a, v) => a + v, 0);
+      const inh = n.inheritColors; // null=全部, 配列=指定IDのみ
+      if (!inh || inh.length === 0) {
+        return Object.values(s.colors).reduce((a, v) => a + v, 0);
+      }
+      return inh.reduce((a, cid) => a + (s.colors[cid] || 0), 0);
+    }
+
+    // isLockedInParent も inheritColors を考慮
+    function effectiveParentPct(k) {
+      return parentMaxFreq(k);
     }
 
     /* ── CELLS ── */
@@ -1865,12 +2013,20 @@ createApp({
     function openAddModal() {
       const n = node();
       const next = streetAfter(n.street);
+      // 親カラーを全選択状態で初期化
+      const allIds = n.colors.filter(c => {
+        // 実際に使われているカラーだけを候補に
+        return RANKS.some((_,ri) => RANKS.some((_,ci) =>
+          (n.hs[`${ri}_${ci}`].colors[c.id] || 0) > 0
+        ));
+      }).map(c => c.id);
       addModal.streetName = capitalize(next);
       addModal.cardCount  = next === 'flop' ? 3 : 1;
       addModal.cards      = ['','',''];
       addModal.label      = '';
       addModal.error      = '';
       addModal.parentNode = n;
+      addModal.inheritIds = [...allIds]; // デフォルト全選択
       addModal.open       = true;
     }
 
@@ -1886,7 +2042,11 @@ createApp({
       const street  = streetAfter(addModal.parentNode.street);
       const label   = addModal.streetName;
       const newNode = makeNode(street, cards.slice(0, count), label, 'postflop');
-      addModal.parentNode.children.splice(0, 1, newNode); // 1本のみ
+      // 全選択ならnull（全引き継ぎ）、絞り込みがあれば配列を保存
+      const allParentIds = addModal.parentNode.colors.map(c => c.id);
+      const isAll = allParentIds.every(id => addModal.inheritIds.includes(id));
+      newNode.inheritColors = isAll ? null : [...addModal.inheritIds];
+      addModal.parentNode.children.splice(0, 1, newNode);
       addModal.open = false;
       navigate(newNode);
       schedSave();
@@ -1911,7 +2071,56 @@ createApp({
       schedSave();
     }
 
-    /* ── PARENT (for locking) ── */
+    /* ── INHERIT MODAL ── */
+    function openInheritModal() {
+      const n = node();
+      const parent = parentOf(n);
+      if (!parent) return;
+      // 親で実際に使われているカラーIDを収集
+      const usedIds = parent.colors.filter(c =>
+        RANKS.some((_,ri) => RANKS.some((_,ci) =>
+          (parent.hs[`${ri}_${ci}`].colors[c.id] || 0) > 0
+        ))
+      ).map(c => c.id);
+      inheritModal.usedIds  = usedIds;
+      inheritModal.inheritIds = n.inheritColors ? [...n.inheritColors] : [...usedIds];
+      inheritModal.open = true;
+    }
+
+    function toggleInheritId(id) {
+      const idx = inheritModal.inheritIds.indexOf(id);
+      if (idx >= 0) inheritModal.inheritIds.splice(idx, 1);
+      else inheritModal.inheritIds.push(id);
+    }
+
+    function confirmInherit() {
+      const n = node();
+      const parent = parentOf(n);
+      if (!parent) return;
+      const allIds = parent.colors.map(c => c.id);
+      const isAll  = allIds.every(id => inheritModal.inheritIds.includes(id));
+      n.inheritColors = isAll ? null : [...inheritModal.inheritIds];
+      inheritModal.open = false;
+      schedSave();
+    }
+
+    // Inheritボタン表示用computed
+    const inheritDots = computed(() => {
+      const n = node();
+      const parent = parentOf(n);
+      if (!parent) return [];
+      const inh = n.inheritColors;
+      if (!inh) return []; // null=全選択=ドット不要
+      return inh.map(id => {
+        const col = parent.colors.find(c => c.id === id);
+        return col ? col.bright : '#888';
+      });
+    });
+
+    const isInheritFiltered = computed(() => {
+      const n = node();
+      return n.inheritColors !== null && n.inheritColors !== undefined;
+    });
     function parentOf(n) {
       if (!n) return null;
       if (n === session.flop)  return session.preflop;
@@ -1979,6 +2188,7 @@ createApp({
         label: n.label,
         preset: n.preset,
         position: n.position,
+        inheritColors: n.inheritColors || null,
         colors: n.colors.map(c => ({ ...c })),
         hs: serializeHS(n.hs),
         children: (n.children || []).map(serializeNode),
@@ -2006,11 +2216,12 @@ createApp({
     }
 
     function deserializeInto(target, src) {
-      target.street   = src.street   || target.street;
-      target.board    = src.board    || [];
-      target.label    = src.label    || '';
-      target.preset   = src.preset   || target.preset;
-      target.position = src.position || 'BTN';
+      target.street        = src.street   || target.street;
+      target.board         = src.board    || [];
+      target.label         = src.label    || '';
+      target.preset        = src.preset   || target.preset;
+      target.position      = src.position || 'BTN';
+      target.inheritColors = src.inheritColors || null;
       if (src.colors) src.colors.forEach((c,i) => { if (target.colors[i]) Object.assign(target.colors[i], c); });
       if (src.hs) {
         Object.entries(src.hs).forEach(([k,v]) => {
@@ -2203,6 +2414,9 @@ createApp({
       ctxError: computed(() => ctxError.value),
       ctxMaxFreq,
       addModal,
+      inheritModal,
+      inheritDots,
+      isInheritFiltered,
       cells,
       currentColors,
       currentPreset,
@@ -2236,6 +2450,9 @@ createApp({
       openAddModal,
       confirmAddNode,
       deleteCurrentNode,
+      openInheritModal,
+      toggleInheritId,
+      confirmInherit,
       setTheme,
       toggleGear,
       resetAll,
