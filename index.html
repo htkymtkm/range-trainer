@@ -1406,7 +1406,7 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
     <div class="modal-label" style="margin-bottom:8px;">選択したアクションのみ次のストリートに引き継ぎます</div>
     <div class="inherit-check-list">
       <div
-        v-for="col in (parentOf(currentNode)?.colors || [])"
+        v-for="col in inheritModal.parentColors"
         :key="col.id"
         class="inherit-check-row"
         :class="{ on: inheritModal.inheritIds.includes(col.id) }"
@@ -1600,6 +1600,7 @@ createApp({
     const inheritModal = reactive({
       open: false,
       inheritIds: [],
+      parentColors: [],  // 親のカラー一覧をここに格納
     });
 
     // press tracking
@@ -1907,8 +1908,15 @@ createApp({
           const k = `${ri}_${ci}`;
           const ps = parent.hs[k];
           const combos = hc(ri,ci);
-          const sum = Object.values(ps.colors||{}).reduce((a,v)=>a+v,0);
-          if (sum) parentTotal += (sum / 100) * combos;
+          const inh = n.inheritColors;
+          const entries = Object.entries(ps.colors||{}).filter(([cid,v]) => {
+            if (v <= 0) return false;
+            if (inh && inh.length > 0) return inh.includes(parseInt(cid));
+            return true;
+          });
+          entries.forEach(([,val]) => {
+            parentTotal += (val / 100) * combos;  // 常に100基準
+          });
         }));
       }
       const basis = isPost ? (parentTotal || 1326) : 1326;
@@ -1922,10 +1930,9 @@ createApp({
         const s       = hs[k];
         const combos  = hc(ri,ci);
         const entries = Object.entries(s.colors||{}).filter(([,v]) => v > 0);
-        const sum     = entries.reduce((a,[,v]) => a+v, 0);
-        if (!sum) return;
+        if (!entries.length) return;
         entries.forEach(([cid,val]) => {
-          const eff = (val/sum) * combos;
+          const eff = (val / 100) * combos;   // 常に100基準で実頻度を計算
           by[parseInt(cid)] = (by[parseInt(cid)] || 0) + eff;
           overall += eff;
         });
@@ -2076,14 +2083,13 @@ createApp({
       const n = node();
       const parent = parentOf(n);
       if (!parent) return;
-      // 親で実際に使われているカラーIDを収集
       const usedIds = parent.colors.filter(c =>
         RANKS.some((_,ri) => RANKS.some((_,ci) =>
           (parent.hs[`${ri}_${ci}`].colors[c.id] || 0) > 0
         ))
       ).map(c => c.id);
-      inheritModal.usedIds  = usedIds;
-      inheritModal.inheritIds = n.inheritColors ? [...n.inheritColors] : [...usedIds];
+      inheritModal.parentColors = parent.colors.filter(c => usedIds.includes(c.id));
+      inheritModal.inheritIds   = n.inheritColors ? [...n.inheritColors] : [...usedIds];
       inheritModal.open = true;
     }
 
