@@ -131,42 +131,41 @@ body {
 /* ── STREET NAV ── */
 .street-nav {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0;
   margin-bottom: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 6px 8px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  padding: 5px 6px;
+  overflow: hidden;
 }
-.street-nav::-webkit-scrollbar { display: none; }
 
 .nav-node {
   display: flex;
   align-items: center;
-  gap: 0;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 .nav-chevron {
   color: var(--t3);
   font-size: 11px;
-  padding: 0 4px;
+  padding: 0 2px;
   flex-shrink: 0;
 }
 .nav-btn {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  padding: 4px 8px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 5px 4px;
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   cursor: pointer;
   transition: background .12s, border-color .12s;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 .nav-btn:hover { background: var(--s2); }
@@ -174,56 +173,64 @@ body {
   background: var(--s2);
   border-color: var(--border);
 }
+.nav-btn.disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
 .nav-street-label {
   font-size: 9px;
   color: var(--t3);
   letter-spacing: .07em;
   text-transform: uppercase;
   line-height: 1;
+  white-space: nowrap;
 }
 .nav-board {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text);
   line-height: 1.2;
   display: flex;
-  gap: 2px;
+  gap: 1px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  max-width: 100%;
 }
-.nav-board.preflop-label {
-  font-size: 11px;
-  color: var(--t2);
+.nav-board.empty {
+  color: var(--t3);
+  font-size: 9px;
+  font-weight: 400;
 }
 .card-s { color: #60c890; }
 .card-h { color: #e06060; }
 .card-d { color: #60b8e0; }
 .card-c { color: #90d060; }
 
-/* ── NAV ACTIONS ── */
-.nav-actions {
+/* ── NAV ADD BUTTON ── */
+.nav-add-wrap {
   display: flex;
-  gap: 4px;
-  margin-left: auto;
+  align-items: center;
   flex-shrink: 0;
-  padding-left: 6px;
+  padding-left: 4px;
 }
 .nav-add-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 6px;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 7px;
   border: 1px dashed var(--border);
   background: transparent;
   color: var(--t2);
-  font-size: 11px;
   cursor: pointer;
-  white-space: nowrap;
   transition: background .12s, color .12s, border-color .12s;
+  flex-shrink: 0;
 }
 .nav-add-btn:hover { background: var(--s2); color: var(--text); border-color: var(--t2); }
 .nav-add-btn svg {
-  width: 11px; height: 11px;
+  width: 13px; height: 13px;
   stroke: currentColor; fill: none;
   stroke-width: 2.2;
   stroke-linecap: round;
@@ -231,14 +238,16 @@ body {
 .nav-del-btn {
   display: flex;
   align-items: center;
-  padding: 4px 6px;
-  border-radius: 6px;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 5px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--t3);
-  font-size: 11px;
   cursor: pointer;
   transition: background .12s, color .12s;
+  flex-shrink: 0;
+  margin-left: 2px;
 }
 .nav-del-btn:hover { background: #2a1010; color: #e06060; }
 .nav-del-btn svg {
@@ -247,6 +256,7 @@ body {
   stroke-width: 2;
   stroke-linecap: round;
 }
+
 
 /* ── GRID ── */
 .grid-section { margin-bottom: 10px; width: 100%; }
@@ -1040,7 +1050,8 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
 
 <!-- STREET NAV -->
 <div class="street-nav">
-  <!-- preflop node -->
+
+  <!-- PREFLOP -->
   <div class="nav-node">
     <button
       class="nav-btn"
@@ -1048,88 +1059,79 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
       @click="navigate(session.preflop)"
     >
       <span class="nav-street-label">Preflop</span>
+      <span class="nav-board empty">—</span>
     </button>
   </div>
 
-  <!-- flop + descendants -->
-  <template v-if="session.flop">
-    <span class="nav-chevron">›</span>
-    <div class="nav-node">
-      <button
-        class="nav-btn"
-        :class="{ active: currentNode === session.flop }"
-        @click="navigate(session.flop)"
-      >
-        <span class="nav-street-label">Flop</span>
-        <span class="nav-board">
-          <template v-for="c in session.flop.board" :key="c">
-            <span :class="suitClass(c)">{{ formatCard(c) }}</span>
-          </template>
-        </span>
-      </button>
-    </div>
+  <span class="nav-chevron">›</span>
 
-    <!-- turn branches -->
-    <template v-for="(turn, ti) in session.flop.children" :key="ti">
-      <span class="nav-chevron">›</span>
-      <div class="nav-node">
-        <button
-          class="nav-btn"
-          :class="{ active: currentNode === turn }"
-          @click="navigate(turn)"
-        >
-          <span class="nav-street-label">Turn{{ session.flop.children.length > 1 ? ` (${ti+1})` : '' }}</span>
-          <span class="nav-board">
-            <template v-for="c in turn.board" :key="c">
-              <span :class="suitClass(c)">{{ formatCard(c) }}</span>
-            </template>
-          </span>
-        </button>
-      </div>
-
-      <!-- river branches -->
-      <template v-for="(river, ri) in turn.children" :key="ri">
-        <span class="nav-chevron">›</span>
-        <div class="nav-node">
-          <button
-            class="nav-btn"
-            :class="{ active: currentNode === river }"
-            @click="navigate(river)"
-          >
-            <span class="nav-street-label">River{{ turn.children.length > 1 ? ` (${ri+1})` : '' }}</span>
-            <span class="nav-board">
-              <template v-for="c in river.board" :key="c">
-                <span :class="suitClass(c)">{{ formatCard(c) }}</span>
-              </template>
-            </span>
-          </button>
-        </div>
-      </template>
-    </template>
-  </template>
-
-  <!-- add next street button -->
-  <div class="nav-actions">
-    <!-- node name editor (postflop) -->
-    <input
-      v-if="currentNode !== session.preflop"
-      class="node-name-inp"
-      type="text"
-      :value="currentNode.label"
-      @input="e => { currentNode.label = e.target.value; schedSave(); }"
-      placeholder="Label…"
-    />
-
-    <button class="nav-add-btn" @click="openAddModal" v-if="canAddChild">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      {{ nextStreetLabel }}
+  <!-- FLOP -->
+  <div class="nav-node">
+    <button
+      class="nav-btn"
+      :class="{ active: session.flop && currentNode === session.flop, disabled: !session.flop }"
+      @click="session.flop && navigate(session.flop)"
+    >
+      <span class="nav-street-label">Flop</span>
+      <span class="nav-board" v-if="session.flop">
+        <template v-for="c in session.flop.board" :key="c">
+          <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+        </template>
+      </span>
+      <span class="nav-board empty" v-else>—</span>
     </button>
+  </div>
 
-    <button class="nav-del-btn" @click="deleteCurrentNode" v-if="currentNode !== session.preflop">
+  <span class="nav-chevron">›</span>
+
+  <!-- TURN -->
+  <div class="nav-node">
+    <button
+      class="nav-btn"
+      :class="{ active: session.turn && currentNode === session.turn, disabled: !session.turn }"
+      @click="session.turn && navigate(session.turn)"
+    >
+      <span class="nav-street-label">Turn</span>
+      <span class="nav-board" v-if="session.turn">
+        <template v-for="c in session.turn.board" :key="c">
+          <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+        </template>
+      </span>
+      <span class="nav-board empty" v-else>—</span>
+    </button>
+  </div>
+
+  <span class="nav-chevron">›</span>
+
+  <!-- RIVER -->
+  <div class="nav-node">
+    <button
+      class="nav-btn"
+      :class="{ active: session.river && currentNode === session.river, disabled: !session.river }"
+      @click="session.river && navigate(session.river)"
+    >
+      <span class="nav-street-label">River</span>
+      <span class="nav-board" v-if="session.river">
+        <template v-for="c in session.river.board" :key="c">
+          <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+        </template>
+      </span>
+      <span class="nav-board empty" v-else>—</span>
+    </button>
+  </div>
+
+  <!-- ADD / DELETE ボタン -->
+  <div class="nav-add-wrap">
+    <button class="nav-add-btn" @click="openAddModal" v-if="canAddChild" title="Add next street">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <button class="nav-del-btn" @click="deleteCurrentNode" v-if="currentNode !== session.preflop" title="Delete this street">
       <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
+
 </div>
+
 
 <!-- GRID -->
 <div class="grid-section">
@@ -1488,26 +1490,6 @@ createApp({
     function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : ''; }
 
     /* ── PARENT RANGE (for locking) ── */
-    function parentOf(target) {
-      // BFS to find parent
-      function search(node) {
-        if (!node) return null;
-        if (node === session.preflop) {
-          if (session.flop === target) return session.preflop;
-          if (session.flop) {
-            for (const turn of session.flop.children) {
-              if (turn === target) return session.flop;
-              for (const river of turn.children) {
-                if (river === target) return turn;
-              }
-            }
-          }
-        }
-        return null;
-      }
-      return search(session.preflop);
-    }
-
     function isLockedInParent(k) {
       const n = node();
       if (n.street === 'preflop') return false;
@@ -1842,25 +1824,28 @@ createApp({
     function updateClearSelLabel() {}
 
     /* ── NAVIGATION ── */
-    const session_flop = computed(() => session.preflop.children[0] || null);
-    // expose as session.flop for template
-    Object.defineProperty(session, 'flop', {
-      get: () => session.preflop.children[0] || null,
-      enumerable: true,
+    // 線形構造: preflop.children[0]=flop, flop.children[0]=turn, turn.children[0]=river
+    Object.defineProperty(session, 'flop',  {
+      get: () => session.preflop.children[0] || null, enumerable: true,
+    });
+    Object.defineProperty(session, 'turn',  {
+      get: () => (session.preflop.children[0]?.children[0]) || null, enumerable: true,
+    });
+    Object.defineProperty(session, 'river', {
+      get: () => (session.preflop.children[0]?.children[0]?.children[0]) || null, enumerable: true,
     });
 
     function navigate(n) {
       currentNode.value = n;
-      // reset selected color to first of that preset
       selectedColor.value = 1;
     }
 
     /* ── ADD NODE ── */
     const canAddChild = computed(() => {
       const n = node();
-      if (n.street === 'preflop') return !session.flop;     // can add flop only once
-      if (n.street === 'flop')    return true;               // can add multiple turns
-      if (n.street === 'turn')    return true;               // can add multiple rivers
+      if (n.street === 'preflop') return !session.flop;
+      if (n.street === 'flop')    return !session.turn;
+      if (n.street === 'turn')    return !session.river;
       return false;
     });
 
@@ -1892,19 +1877,16 @@ createApp({
     function confirmAddNode() {
       const count = addModal.cardCount;
       const cards = addModal.cards.slice(0, count);
-
-      // validate
       for (let i = 0; i < count; i++) {
         if (!isValidCard(cards[i])) {
           addModal.error = `Card ${i+1} is invalid. Use format like As, Kh, 2c`;
           return;
         }
       }
-
       const street  = streetAfter(addModal.parentNode.street);
-      const label   = addModal.label || addModal.streetName;
+      const label   = addModal.streetName;
       const newNode = makeNode(street, cards.slice(0, count), label, 'postflop');
-      addModal.parentNode.children.push(newNode);
+      addModal.parentNode.children.splice(0, 1, newNode); // 1本のみ
       addModal.open = false;
       navigate(newNode);
       schedSave();
@@ -1914,36 +1896,28 @@ createApp({
     function deleteCurrentNode() {
       const n = node();
       if (n.street === 'preflop') return;
+      if (!confirm(`Delete this street and all children?`)) return;
 
-      if (!confirm(`Delete "${n.label || n.street}" and all its children?`)) return;
+      if (n.street === 'flop') {
+        session.preflop.children.splice(0);
+        navigate(session.preflop);
+      } else if (n.street === 'turn') {
+        session.flop.children.splice(0);
+        navigate(session.flop);
+      } else if (n.street === 'river') {
+        session.turn.children.splice(0);
+        navigate(session.turn);
+      }
+      schedSave();
+    }
 
-      // find parent and remove
-      const pf = session.preflop;
-      if (pf.children[0] === n) {
-        pf.children.splice(0, 1);
-        navigate(pf);
-        schedSave();
-        return;
-      }
-      const flop = pf.children[0];
-      if (flop) {
-        const ti = flop.children.indexOf(n);
-        if (ti >= 0) {
-          flop.children.splice(ti, 1);
-          navigate(flop);
-          schedSave();
-          return;
-        }
-        for (const turn of flop.children) {
-          const ri = turn.children.indexOf(n);
-          if (ri >= 0) {
-            turn.children.splice(ri, 1);
-            navigate(turn);
-            schedSave();
-            return;
-          }
-        }
-      }
+    /* ── PARENT (for locking) ── */
+    function parentOf(n) {
+      if (!n) return null;
+      if (n === session.flop)  return session.preflop;
+      if (n === session.turn)  return session.flop;
+      if (n === session.river) return session.turn;
+      return null;
     }
 
     /* ── THEME ── */
@@ -2095,17 +2069,19 @@ createApp({
     }
 
     function presetMeta(preflopNode) {
-      // サマリ文字列：ストリート数と上位アクション名を表示
-      const streets = ['Preflop'];
-      function walk(n) {
-        if (!n.children) return;
-        n.children.forEach(c => {
-          streets.push(c.label || c.street);
-          walk(c);
-        });
+      // 線形ツリーを辿ってストリートのボード情報をサマリ表示
+      const parts = ['Preflop'];
+      let n = preflopNode;
+      const streetNames = ['Flop', 'Turn', 'River'];
+      let si = 0;
+      while (n.children && n.children[0] && si < 3) {
+        const child = n.children[0];
+        const board = (child.board || []).join('').toUpperCase();
+        parts.push(board ? `${streetNames[si]} ${board}` : streetNames[si]);
+        n = child;
+        si++;
       }
-      walk(preflopNode);
-      return streets.join(' › ');
+      return parts.join(' › ');
     }
 
     function openPresetModal() {
