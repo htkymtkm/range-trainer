@@ -316,9 +316,12 @@ body {
 }
 /* postflop未塗り：親レンジ内だが自分は未選択 */
 .cell.off-post {
-  background: var(--cell-lock);
+  background: var(--cell-off);
   color: var(--cell-fg);
   border-color: var(--cell-bd);
+}
+.cell.off-post .cell-label {
+  color: var(--cell-fg);
 }
 .cell-label {
   position: relative;
@@ -1904,7 +1907,7 @@ createApp({
       if (!entries.length) {
         // ポストフロップ未塗り：親の割当%分だけ濃い灰を描画
         if (node().street !== 'preflop' && maxPct > 0) {
-          return [{ cid: 'empty', w: maxPct, color: 'var(--cell-lock)' }];
+          return [{ cid: 'empty', w: maxPct, color: 'var(--cell-off)' }];
         }
         return [];
       }
@@ -1918,7 +1921,7 @@ createApp({
       const filled = segs.reduce((a, s) => a + s.w, 0);
       const dark   = maxPct - filled;
       if (dark > 0.01) {
-        segs.push({ cid: 'dark', w: dark, color: 'var(--cell-lock)' });
+        segs.push({ cid: 'dark', w: dark, color: 'var(--cell-off)' });
       }
       return segs;
     }
