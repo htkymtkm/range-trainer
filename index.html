@@ -200,10 +200,10 @@ body {
   font-size: 9px;
   font-weight: 400;
 }
-.card-s { color: #60c890; }
-.card-h { color: #e06060; }
-.card-d { color: #60b8e0; }
-.card-c { color: #90d060; }
+.card-s, .card-cell.suit-s, .suit-s { color: #60c890; }
+.card-h, .card-cell.suit-h, .suit-h { color: #e06060; }
+.card-d, .card-cell.suit-d, .suit-d { color: #60b8e0; }
+.card-c, .card-cell.suit-c, .suit-c { color: #90d060; }
 
 /* ── NAV ADD BUTTON ── */
 .nav-add-wrap {
@@ -748,10 +748,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
   gap: 0;
 }
 .card-cell:active { transform: scale(0.88); }
-.card-cell.suit-s { color: #60c890; }
-.card-cell.suit-h { color: #e06060; }
-.card-cell.suit-d { color: #60b8e0; }
-.card-cell.suit-c { color: #90d060; }
+
 .card-cell.selected {
   background: var(--s3);
   border-color: var(--t2);
