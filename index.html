@@ -1980,7 +1980,6 @@ createApp({
       const [ri,ci] = ctxKey.value.split('_').map(Number);
       return hn(ri,ci) + ' — frequency';
     });
-    function removeHand() {
     const ctxFbarSegs = computed(() => {
       if (!ctxKey.value) return [];
       const s = currentHS.value[ctxKey.value];
