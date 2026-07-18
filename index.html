@@ -188,7 +188,6 @@ body {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   font-weight: 600;
-  color: var(--text);
   line-height: 1.2;
   display: flex;
   gap: 1px;
@@ -350,15 +349,15 @@ body {
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--surface);
-  border: 1.5px solid var(--border);
+  border: 2.5px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color .12s, background .12s;
+  transition: border-color .12s, background .12s, transform .12s;
 }
-.clear-x-btn:hover { border-color: var(--t2); background: var(--s2); }
+.clear-x-btn:hover { transform: scale(1.14); border-color: var(--t2); background: var(--s2); }
 html[data-theme="light"] .clear-x-btn { background: #fff; }
 .clear-x-btn svg {
   width: 12px; height: 12px;
@@ -367,7 +366,8 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
   stroke-linecap: round;
 }
 .clear-x-btn.sel {
-  border-color: var(--t2);
+  border-color: var(--text);
+  transform: scale(1.22);
   background: var(--s2);
 }
 .clear-x-btn.sel svg { stroke: var(--text); }
@@ -2019,22 +2019,11 @@ createApp({
 
     function openCtx(k) {
       if (isLockedInParent(k)) return;
-      // ×ボタン選択中は長押しで消去→モーダルは開かない
-      if (sel() === 0) {
-        currentHS.value[k] = { colors:{} };
-        schedSave();
-        return;
-      }
-      const hs = currentHS.value;
-      if (!active(hs, k)) {
-        const maxPct = parentMaxFreq(k);
-        hs[k].colors = { [sel()]: maxPct };
-      }
+      // 空ハンドでも塗らずにモーダルを開く（×選択中も同様）
       ctxKey.value  = k;
       ctxError.value = '';
       ctxErrId.value = null;
       ctxOpen.value = true;
-      schedSave();
     }
     function closeCtx() {
       ctxOpen.value = false;
