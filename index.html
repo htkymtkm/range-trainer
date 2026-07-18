@@ -30,7 +30,6 @@
   --cell-lock-fg: #2a2d40;
   --unfill:   rgba(255,255,255,0.08);
   --shadow:   rgba(0,0,0,0.65);
-  --cap-bg:   #0f1117;
   --accent:   #4090ff;
 }
 html[data-theme="light"] {
@@ -50,7 +49,6 @@ html[data-theme="light"] {
   --cell-lock-fg: #a0a4bc;
   --unfill:   rgba(0,0,0,0.14);
   --shadow:   rgba(0,0,0,0.20);
-  --cap-bg:   #eef0f8;
   --accent:   #2060d0;
 }
 
@@ -261,13 +259,7 @@ body {
 
 
 /* ── GRID ── */
-.grid-section { margin-bottom: 10px; width: 100%; }
-#captureRoot {
-  background: var(--cap-bg);
-  border-radius: 6px;
-  padding: 6px;
-  width: 100%;
-}
+.grid-section { margin-bottom: 10px; width: 100%; padding: 6px; }
 .grid {
   display: grid;
   grid-template-columns: repeat(13, 1fr);
@@ -1109,32 +1101,6 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
 }
 .toast.show { opacity: 1; }
 
-/* node name label row */
-.node-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.node-name-inp {
-  flex: 1;
-  padding: 4px 8px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  color: var(--t2);
-  font-size: 11px;
-  font-family: system-ui, sans-serif;
-  -webkit-user-select: text;
-  user-select: text;
-  transition: border-color .12s, background .12s;
-}
-.node-name-inp:focus {
-  outline: none;
-  border-color: var(--border);
-  background: var(--s2);
-  color: var(--text);
-}
 
 
 </style>
@@ -1274,7 +1240,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
 
 <!-- GRID -->
 <div class="grid-section">
-  <div id="captureRoot">
+  <div>
     <div class="grid">
       <div
         v-for="cell in cells"
@@ -1357,7 +1323,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
 </div>
 
 <!-- STATS -->
-<div class="bottom-row" id="statsSection">
+<div class="bottom-row">
   <div class="card">
     <div class="card-title">Range Stats — {{ currentStreetLabel }}</div>
     <div class="range-pct">{{ stats.pct }}%</div>
@@ -2210,26 +2176,6 @@ createApp({
       showToast('Deleted');
     }
 
-    /* ── CLEAR OPS ── */
-    function clearCurrent() {
-      // 後方互換のため残す（使われなくなるが念のため）
-      const hs = currentHS.value;
-      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
-        hs[`${ri}_${ci}`] = { colors:{} };
-      }));
-      schedSave();
-    }
-
-    function clearSelected() {
-      const hs  = currentHS.value;
-      const cid = sel();
-      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
-        const k = `${ri}_${ci}`;
-        if ((hs[k].colors[cid] || 0) > 0) delete hs[k].colors[cid];
-      }));
-      schedSave();
-    }
-
     /* ── NAVIGATION ── */
     // 線形構造: preflop.children[0]=flop, flop.children[0]=turn, turn.children[0]=river
     Object.defineProperty(session, 'flop',  {
@@ -2393,7 +2339,7 @@ createApp({
         '--border':'#2e3350','--text':'#e8eaf0','--t2':'#8a90b0','--t3':'#555a7a',
         '--gold':'#f0c040','--cell-off':'#1e2130','--cell-fg':'#3a4060','--cell-bd':'#252840',
         '--cell-lock':'#141620','--cell-lock-fg':'#2a2d40',
-        '--unfill':'rgba(255,255,255,0.08)','--shadow':'rgba(0,0,0,0.65)','--cap-bg':'#0f1117',
+        '--unfill':'rgba(255,255,255,0.08)','--shadow':'rgba(0,0,0,0.65)',
         '--accent':'#4090ff',
       };
       const light = {
@@ -2401,7 +2347,7 @@ createApp({
         '--border':'#bcc0d8','--text':'#181b2c','--t2':'#4a5078','--t3':'#8890b0',
         '--gold':'#a06800','--cell-off':'#d8daea','--cell-fg':'#8890b0','--cell-bd':'#c0c4d8',
         '--cell-lock':'#c4c8dc','--cell-lock-fg':'#a0a4bc',
-        '--unfill':'rgba(0,0,0,0.14)','--shadow':'rgba(0,0,0,0.20)','--cap-bg':'#eef0f8',
+        '--unfill':'rgba(0,0,0,0.14)','--shadow':'rgba(0,0,0,0.20)',
         '--accent':'#2060d0',
       };
       const tokens = t === 'light' ? light : dark;
@@ -2670,8 +2616,6 @@ createApp({
       onCellTouchEnd,
       onCellTouchMove,
       onCellTouchCancel,
-      clearCurrent,
-      clearSelected,
       deleteModal,
       openDeleteModal,
       toggleDeleteId,
