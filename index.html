@@ -10,7 +10,6 @@
 <meta name="apple-mobile-web-app-title" content="Range Trainer">
 <meta name="theme-color" content="#0f1117" id="metaThemeColor">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <style>
 /* ── THEME TOKENS ── */
@@ -342,12 +341,13 @@ body {
 /* ── COLOR BAR ── */
 .color-section {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
   align-items: center;
   margin-bottom: 10px;
+  overflow: hidden;
 }
-.color-bar { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.color-bar { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
 .color-btn {
   width: 26px; height: 26px;
   border-radius: 50%;
@@ -360,7 +360,10 @@ body {
 .color-btn.sel { border-color: var(--text); transform: scale(1.22); }
 
 .clear-sel-btn {
-  padding: 5px 11px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: 20px;
   cursor: pointer;
   font-size: 11px;
@@ -370,24 +373,15 @@ body {
   background: var(--surface);
   color: var(--t2);
   white-space: nowrap;
+  flex-shrink: 0;
   transition: background .12s, color .12s;
 }
 .clear-sel-btn:hover { background: var(--s2); color: var(--text); }
-
-/* preset badge */
-.preset-badge {
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 9px;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  color: var(--t3);
-  white-space: nowrap;
+.clear-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.preset-badge.preflop { border-color: #405080; color: #6080c0; }
-.preset-badge.postflop { border-color: #305040; color: #50a070; }
 
 /* ── INHERIT BUTTON ── */
 .inherit-btn {
@@ -488,37 +482,6 @@ body {
 .cstat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .cstat-name { font-size: 11px; color: var(--t2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cstat-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text); flex-shrink: 0; }
-
-/* export btn */
-.export-row { margin-top: 10px; }
-.export-btn {
-  padding: 8px 12px;
-  border-radius: 7px;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: system-ui, sans-serif;
-  font-weight: 500;
-  border: 1px solid #405a30;
-  color: #60c840;
-  background: #182810;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  transition: background .12s;
-}
-.export-btn:hover { background: #203818; }
-.export-btn svg {
-  width: 13px; height: 13px;
-  stroke: currentColor; fill: none;
-  stroke-width: 1.9;
-  stroke-linecap: round; stroke-linejoin: round;
-}
-html[data-theme="light"] .export-btn {
-  background: #d0f0b8; color: #286010; border-color: #80c040;
-}
-html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
 
 /* ── HINT BAR ── */
 .hint-bar {
@@ -691,7 +654,104 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
 }
 .ctx-rm:hover { background: #3a1515; }
 
-/* ── ADD NODE MODAL ── */
+/* ── CARD GRID PICKER ── */
+.card-grid-header {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+  min-height: 36px;
+}
+.card-slot-display {
+  width: 48px; height: 36px;
+  border-radius: 6px;
+  border: 1.5px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+  position: relative;
+}
+.card-slot-display.filled {
+  border-style: solid;
+  border-color: var(--t2);
+  background: var(--s2);
+}
+.card-slot-display.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(64,144,255,0.25);
+}
+.card-slot-display .slot-x {
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--t3);
+  color: var(--bg);
+  font-size: 9px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.card-slot-display.filled:hover .slot-x { background: #e06060; }
+.card-slot-empty {
+  font-size: 11px;
+  color: var(--t3);
+}
+
+.card-grid-wrap {
+  background: var(--s2);
+  border-radius: 8px;
+  padding: 6px;
+  margin-bottom: 10px;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 3px;
+}
+.card-cell {
+  aspect-ratio: 1 / 1.1;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(7px, 2.2vw, 11px);
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: transform .07s, background .1s, opacity .1s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  line-height: 1;
+  flex-direction: column;
+  gap: 0;
+}
+.card-cell:active { transform: scale(0.88); }
+.card-cell.suit-s { color: #60c890; }
+.card-cell.suit-h { color: #e06060; }
+.card-cell.suit-d { color: #60b8e0; }
+.card-cell.suit-c { color: #90d060; }
+.card-cell.selected {
+  background: var(--s3);
+  border-color: var(--t2);
+  box-shadow: inset 0 0 0 1px var(--t2);
+}
+.card-cell.used {
+  opacity: 0.2;
+  cursor: default;
+  pointer-events: none;
+}
+.card-cell-rank { font-size: clamp(8px, 2.4vw, 12px); line-height: 1; }
+.card-cell-suit { font-size: clamp(7px, 2vw, 10px); line-height: 1; }
+
+
 .modal-overlay {
   position: fixed;
   top: 0; right: 0; bottom: 0; left: 0;
@@ -707,7 +767,9 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
   border-radius: 14px;
   padding: 16px;
   width: 340px;
-  max-width: 92vw;
+  max-width: 96vw;
+  max-height: 92vh;
+  overflow-y: auto;
   box-shadow: 0 12px 48px var(--shadow);
 }
 .modal-title {
@@ -1100,12 +1162,6 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
           </div>
         </div>
         <div class="dd-sep"></div>
-        <div class="dd-sec">Export</div>
-        <button class="dd-btn" @click="gearOpen=false; exportPng()">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download PNG (current theme)
-        </button>
-        <div class="dd-sep"></div>
         <button class="dd-btn danger" @click="gearOpen=false; resetAll()">
           <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
           Reset all data
@@ -1251,10 +1307,18 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
       :class="{ sel: selectedColor === col.id }"
       :style="{ background: col.bright }"
       :title="col.name"
-      @click="selectedColor = col.id; updateClearSelLabel()"
+      @click="selectedColor = col.id"
     ></div>
   </div>
-  <button class="clear-sel-btn" @click="clearSelected">Clear "{{ currentColorName }}"</button>
+
+  <!-- Clear ボタン（選択色ドット付き） -->
+  <button class="clear-sel-btn" @click="clearSelected">
+    <span
+      class="clear-dot"
+      :style="{ background: currentColors.find(c => c.id === selectedColor)?.bright || '#888' }"
+    ></span>
+    Clear
+  </button>
 
   <!-- Inherit ボタン（ポストフロップのみ） -->
   <button
@@ -1262,6 +1326,7 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
     class="inherit-btn"
     :class="{ filtered: isInheritFiltered }"
     @click="openInheritModal"
+    style="margin-left:auto;"
   >
     <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;">
       <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
@@ -1276,8 +1341,6 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
       ></span>
     </span>
   </button>
-
-  <span class="preset-badge" :class="currentPreset">{{ currentPreset }}</span>
 </div>
 
 <!-- STATS -->
@@ -1292,12 +1355,6 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
         <span class="cstat-name">{{ row.name }}</span>
         <span class="cstat-val">{{ row.combos }} ({{ row.pct }}%)</span>
       </div>
-    </div>
-    <div class="export-row">
-      <button class="export-btn" @click="exportPng">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download PNG
-      </button>
     </div>
   </div>
 </div>
@@ -1355,28 +1412,51 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
 
 <!-- ADD NODE MODAL -->
 <div class="modal-overlay" v-if="addModal.open" @click.self="addModal.open = false">
-  <div class="modal">
+  <div class="modal" style="max-width:96vw;">
     <div class="modal-title">Add {{ addModal.streetName }}</div>
 
-    <div class="modal-label">{{ addModal.cardCount === 3 ? 'Flop cards (3)' : 'Turn / River card (1)' }}</div>
-    <div class="card-picker">
-      <div class="card-slot" v-for="i in addModal.cardCount" :key="i">
-        <span class="card-slot-label">Card {{ i }}</span>
-        <input
-          class="card-inp"
-          :class="{ 'has-val': addModal.cards[i-1] }"
-          type="text"
-          maxlength="2"
-          v-model="addModal.cards[i-1]"
-          :placeholder="i === 1 ? 'As' : i === 2 ? 'Kh' : i === 3 ? '2c' : '7d'"
-          @input="addModal.cards[i-1] = $event.target.value.toUpperCase().replace(/[^AKQJT2-9CDHS]/gi,'')"
-        />
+    <!-- 選択済みカードスロット -->
+    <div class="card-grid-header">
+      <div
+        v-for="i in addModal.cardCount" :key="i"
+        class="card-slot-display"
+        :class="{
+          filled: !!addModal.cards[i-1],
+          active: addModal.activeSlot === i-1
+        }"
+        @click="addModal.activeSlot = i-1"
+      >
+        <template v-if="addModal.cards[i-1]">
+          <span :class="'suit-' + addModal.cards[i-1].slice(-1).toLowerCase()" style="font-size:15px;font-weight:700;">
+            {{ cardDisplayText(addModal.cards[i-1]) }}
+          </span>
+          <span class="slot-x" @click.stop="clearCardSlot(i-1)">✕</span>
+        </template>
+        <span v-else class="card-slot-empty">{{ i }}</span>
       </div>
     </div>
-    <div class="modal-hint">Rank: A K Q J T 9–2 &nbsp;|&nbsp; Suit: s h d c</div>
+
+    <!-- 52枚グリッド -->
+    <div class="card-grid-wrap">
+      <div class="card-grid">
+        <div
+          v-for="card in allCards"
+          :key="card.code"
+          class="card-cell"
+          :class="[
+            'suit-' + card.suit,
+            { selected: addModal.cards.includes(card.code), used: isCardUsed(card.code) }
+          ]"
+          @click="selectCard(card.code)"
+        >
+          <span class="card-cell-rank">{{ card.rank }}</span>
+          <span class="card-cell-suit">{{ card.suitSym }}</span>
+        </div>
+      </div>
+    </div>
 
     <!-- Inherit チェックリスト -->
-    <div class="modal-label" style="margin-top:10px;">Inherit from {{ addModal.parentNode?.street || 'parent' }}</div>
+    <div class="modal-label">Inherit from {{ addModal.parentNode?.street || 'parent' }}</div>
     <div class="inherit-check-list">
       <div
         v-for="col in (addModal.parentNode?.colors || [])"
@@ -1495,12 +1575,12 @@ function makeColors(preset) {
       { id:7, name:'None',             bright:'#606880' },
     ];
   }
-  // postflop — 6色
+  // postflop — 6色（大きいサイズ順）
   return [
-    { id:1, name:'Low size',     bright:'#f0c800' },  // 黄
-    { id:2, name:'Middle size',  bright:'#ff5522' },  // オレンジ
-    { id:3, name:'Large size',   bright:'#e03060' },  // 赤
-    { id:4, name:'Over size',    bright:'#b090e0' },  // 紫
+    { id:1, name:'Over size',    bright:'#b090e0' },  // 紫
+    { id:2, name:'Large size',   bright:'#e03060' },  // 赤
+    { id:3, name:'Middle size',  bright:'#ff5522' },  // オレンジ
+    { id:4, name:'Small size',   bright:'#f0c800' },  // 黄
     { id:5, name:'Check / Call', bright:'#30c890' },  // 緑
     { id:6, name:'None',         bright:'#555a7a' },  // グレー
   ];
@@ -1592,11 +1672,93 @@ createApp({
       streetName: '',
       cardCount: 3,
       cards: ['','',''],
-      label: '',
+      activeSlot: 0,       // 現在選択中のスロット番号
       error: '',
       parentNode: null,
-      inheritIds: [],      // 選択中のカラーID（空=全選択）
+      inheritIds: [],
     });
+
+    // 52枚のカードデータ
+    const SUITS = [
+      { key: 's', sym: '♠' },
+      { key: 'h', sym: '♥' },
+      { key: 'd', sym: '♦' },
+      { key: 'c', sym: '♣' },
+    ];
+    const allCards = computed(() => {
+      const cards = [];
+      SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+          cards.push({
+            code: rank + suit.key,   // 例: "As", "Kh"
+            rank,
+            suit: suit.key,
+            suitSym: suit.sym,
+          });
+        });
+      });
+      return cards;
+    });
+
+    // すでに使われているカード（全ストリートのboard）
+    function usedCards() {
+      const used = new Set();
+      function collect(n) {
+        if (!n) return;
+        (n.board || []).forEach(c => used.add(c.toUpperCase()));
+        (n.children || []).forEach(collect);
+      }
+      collect(session.preflop);
+      return used;
+    }
+
+    function isCardUsed(code) {
+      // 現在のaddModalで選択中のカードは除外してチェック
+      const used = usedCards();
+      // すでに他のスロットに入っているカードも除外
+      const selected = addModal.cards.filter(c => c && c.toUpperCase() !== code.toUpperCase());
+      return used.has(code.toUpperCase()) || selected.some(c => c.toUpperCase() === code.toUpperCase());
+    }
+
+    function selectCard(code) {
+      if (isCardUsed(code)) return;
+      const slot = addModal.activeSlot;
+      if (slot >= addModal.cardCount) return;
+
+      // すでに選択済みならクリア
+      if (addModal.cards[slot]?.toUpperCase() === code.toUpperCase()) {
+        addModal.cards[slot] = '';
+        return;
+      }
+      // 他スロットに同じカードがあればクリア
+      addModal.cards = addModal.cards.map((c, i) =>
+        c.toUpperCase() === code.toUpperCase() ? '' : c
+      );
+      addModal.cards[slot] = code;
+      // 次の空きスロットに自動移動
+      const nextEmpty = addModal.cards.findIndex((c, i) => i > slot && !c);
+      if (nextEmpty >= 0) addModal.activeSlot = nextEmpty;
+      else {
+        // 前の空きスロット
+        const prevEmpty = addModal.cards.findIndex(c => !c);
+        if (prevEmpty >= 0) addModal.activeSlot = prevEmpty;
+      }
+    }
+
+    function clearCardSlot(i) {
+      addModal.cards[i] = '';
+      addModal.activeSlot = i;
+    }
+
+    function cardDisplayText(code) {
+      if (!code) return '';
+      const rank = code.slice(0, -1);
+      const suit = code.slice(-1).toLowerCase();
+      const syms = { s: '♠', h: '♥', d: '♦', c: '♣' };
+      return rank + (syms[suit] || suit);
+    }
+
+
 
     // inherit編集モーダル
     const inheritModal = reactive({
@@ -1615,11 +1777,6 @@ createApp({
     const currentColors = computed(() => node().colors);
     const currentPreset = computed(() => node().preset);
     const currentHS     = computed(() => node().hs);
-
-    const currentColorName = computed(() => {
-      const col = node().colors.find(c => c.id === sel());
-      return col ? col.name : '';
-    });
 
     const currentStreetLabel = computed(() => {
       const n = node();
@@ -1978,8 +2135,6 @@ createApp({
       schedSave();
     }
 
-    function updateClearSelLabel() {}
-
     /* ── NAVIGATION ── */
     // 線形構造: preflop.children[0]=flop, flop.children[0]=turn, turn.children[0]=river
     Object.defineProperty(session, 'flop',  {
@@ -2022,36 +2177,33 @@ createApp({
     function openAddModal() {
       const n = node();
       const next = streetAfter(n.street);
-      // 親カラーを全選択状態で初期化
-      const allIds = n.colors.filter(c => {
-        // 実際に使われているカラーだけを候補に
-        return RANKS.some((_,ri) => RANKS.some((_,ci) =>
+      const allIds = n.colors.filter(c =>
+        RANKS.some((_,ri) => RANKS.some((_,ci) =>
           (n.hs[`${ri}_${ci}`].colors[c.id] || 0) > 0
-        ));
-      }).map(c => c.id);
-      addModal.streetName = capitalize(next);
-      addModal.cardCount  = next === 'flop' ? 3 : 1;
-      addModal.cards      = ['','',''];
-      addModal.label      = '';
-      addModal.error      = '';
-      addModal.parentNode = n;
-      addModal.inheritIds = [...allIds]; // デフォルト全選択
-      addModal.open       = true;
+        ))
+      ).map(c => c.id);
+      addModal.streetName  = capitalize(next);
+      addModal.cardCount   = next === 'flop' ? 3 : 1;
+      addModal.cards       = ['','',''];
+      addModal.activeSlot  = 0;
+      addModal.error       = '';
+      addModal.parentNode  = n;
+      addModal.inheritIds  = [...allIds];
+      addModal.open        = true;
     }
 
     function confirmAddNode() {
       const count = addModal.cardCount;
       const cards = addModal.cards.slice(0, count);
       for (let i = 0; i < count; i++) {
-        if (!isValidCard(cards[i])) {
-          addModal.error = `Card ${i+1} is invalid. Use format like As, Kh, 2c`;
+        if (!cards[i] || !isValidCard(cards[i])) {
+          addModal.error = `Card ${i+1} is not selected`;
           return;
         }
       }
       const street  = streetAfter(addModal.parentNode.street);
       const label   = addModal.streetName;
       const newNode = makeNode(street, cards.slice(0, count), label, 'postflop');
-      // 全選択ならnull（全引き継ぎ）、絞り込みがあれば配列を保存
       const allParentIds = addModal.parentNode.colors.map(c => c.id);
       const isAll = allParentIds.every(id => addModal.inheritIds.includes(id));
       newNode.inheritColors = isAll ? null : [...addModal.inheritIds];
@@ -2356,37 +2508,6 @@ createApp({
       savePresetList();
     }
 
-    /* ── EXPORT ── */
-    async function exportPng() {
-      showToast('Generating image…');
-      try {
-        const t   = theme.value;
-        const bg  = t === 'light' ? '#eef0f8' : '#0f1117';
-        const grid  = document.getElementById('captureRoot');
-        const stats_el = document.getElementById('statsSection');
-        const wrap = document.createElement('div');
-        wrap.style.cssText =
-          `position:fixed;left:-9999px;top:0;background:${bg};padding:14px;border-radius:8px;` +
-          `width:${grid.offsetWidth+28}px;`;
-        wrap.appendChild(grid.cloneNode(true));
-        const gap = document.createElement('div');
-        gap.style.height = '12px';
-        wrap.appendChild(gap);
-        wrap.appendChild(stats_el.cloneNode(true));
-        document.body.appendChild(wrap);
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const canvas = await html2canvas(wrap, { backgroundColor:bg, scale:2, useCORS:true, logging:false });
-        document.body.removeChild(wrap);
-        const a = document.createElement('a');
-        a.download = `poker-range-${currentStreetLabel.value.replace(/[^a-z0-9]/gi,'-')}.png`;
-        a.href = canvas.toDataURL('image/png');
-        a.click();
-        showToast('PNG downloaded ✓');
-      } catch(err) {
-        showToast('Error: ' + err.message);
-      }
-    }
-
     /* ── TOAST ── */
     let _toastTimer;
     function showToast(msg) {
@@ -2422,6 +2543,11 @@ createApp({
       ctxError: computed(() => ctxError.value),
       ctxMaxFreq,
       addModal,
+      allCards,
+      selectCard,
+      clearCardSlot,
+      cardDisplayText,
+      isCardUsed,
       inheritModal,
       inheritDots,
       isInheritFiltered,
@@ -2429,7 +2555,6 @@ createApp({
       currentColors,
       currentPreset,
       currentHS,
-      currentColorName,
       currentStreetLabel,
       stats,
       canAddChild,
@@ -2454,7 +2579,6 @@ createApp({
       onCellTouchCancel,
       clearCurrent,
       clearSelected,
-      updateClearSelLabel,
       openAddModal,
       confirmAddNode,
       deleteCurrentNode,
@@ -2469,7 +2593,6 @@ createApp({
       savePreset,
       loadPreset,
       deletePreset,
-      exportPng,
       showToast,
       schedSave,
       suitClass,
