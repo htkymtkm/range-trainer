@@ -213,6 +213,8 @@ body {
   flex-shrink: 0;
   padding-left: 4px;
   height: 44px;
+  gap: 3px;
+  width: 72px;
 }
 .nav-add-btn {
   display: flex;
@@ -1228,12 +1230,22 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
     </button>
   </div>
 
-  <!-- ADD / DELETE ボタン -->
+  <!-- ADD / DELETE ボタン（常に固定幅で表示位置を揃える） -->
   <div class="nav-add-wrap">
-    <button class="nav-add-btn" @click="openAddModal" v-if="canAddChild" title="Add next street">
+    <button
+      class="nav-add-btn"
+      @click="openAddModal"
+      :style="{ visibility: canAddChild ? 'visible' : 'hidden' }"
+      title="Add next street"
+    >
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
-    <button class="nav-del-btn" @click="deleteCurrentNode" v-if="currentNode !== session.preflop" title="Delete this street">
+    <button
+      class="nav-del-btn"
+      @click="deleteCurrentNode"
+      :style="{ visibility: currentNode !== session.preflop ? 'visible' : 'hidden' }"
+      title="Delete this street"
+    >
       <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
