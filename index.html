@@ -1323,8 +1323,10 @@ html[data-theme="light"] .export-btn:hover { background: #bce0a0; }
       class="finput"
       :class="{ err: ctxErrId === col.id }"
       type="number" min="0" max="100" step="5"
+      inputmode="numeric"
+      pattern="[0-9]*"
       :value="ctxFreq(col.id)"
-      @input="e => setFreq(col.id, e.target.value, e.target)"
+      @change="e => setFreq(col.id, e.target.value, e.target)"
     />
     <span class="fpct">%</span>
   </div>
