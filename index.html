@@ -1400,6 +1400,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
       inputmode="numeric"
       pattern="[0-9]*"
       :value="ctxFreq(col.id)"
+      @focus="e => e.target.select()"
       @change="e => setFreq(col.id, e.target.value, e.target)"
     />
     <span class="fpct">%</span>
@@ -1904,25 +1905,32 @@ createApp({
       if (!s) return [];
       const entries = Object.entries(s.colors).filter(([,v]) => v > 0);
       const maxPct  = parentMaxFreq(k);
+      const isPost  = node().street !== 'preflop';
+
       if (!entries.length) {
-        // ポストフロップ未塗り：親の割当%分だけ濃い灰を描画
-        if (node().street !== 'preflop' && maxPct > 0) {
+        // ポストフロップ未塗り：親の割当%分だけcell-offで描画
+        if (isPost && maxPct > 0) {
           return [{ cid: 'empty', w: maxPct, color: 'var(--cell-off)' }];
         }
         return [];
       }
-      // 色セグメント幅 = val/100 * maxPct（実際の割合をそのまま幅に）
+
+      // 色セグメント幅 = val/100 * maxPct
       const segs = entries.map(([cid, val]) => ({
         cid,
         w: (val / 100) * maxPct,
         color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
       }));
-      // 残りの濃い灰（親の割当範囲内で未塗りの部分）
-      const filled = segs.reduce((a, s) => a + s.w, 0);
-      const dark   = maxPct - filled;
-      if (dark > 0.01) {
-        segs.push({ cid: 'dark', w: dark, color: 'var(--cell-off)' });
+
+      // ポストフロップのみ：残りの未塗り部分をcell-offで描画
+      if (isPost) {
+        const filled = segs.reduce((a, seg) => a + seg.w, 0);
+        const dark   = maxPct - filled;
+        if (dark > 0.01) {
+          segs.push({ cid: 'dark', w: dark, color: 'var(--cell-off)' });
+        }
       }
+
       return segs;
     }
 
