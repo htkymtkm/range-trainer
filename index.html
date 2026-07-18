@@ -327,13 +327,6 @@ body {
   pointer-events: none;
   letter-spacing: -.4px;
 }
-.cell.checked .cell-label { color: var(--gold) !important; }
-.cell.checked::after {
-  content: '✓';
-  position: absolute; top: 1px; right: 2px;
-  font-size: 7px;
-  color: var(--gold);
-}
 .cell-bg {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex;
@@ -361,28 +354,74 @@ body {
 .color-btn:hover { transform: scale(1.14); }
 .color-btn.sel { border-color: var(--text); transform: scale(1.22); }
 
-.clear-sel-btn {
+.clear-x-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 20px;
+  justify-content: center;
   cursor: pointer;
-  font-size: 11px;
-  font-family: system-ui, sans-serif;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--t2);
-  white-space: nowrap;
   flex-shrink: 0;
-  transition: background .12s, color .12s;
+  transition: border-color .12s, background .12s;
 }
-.clear-sel-btn:hover { background: var(--s2); color: var(--text); }
-.clear-dot {
-  width: 8px; height: 8px;
+.clear-x-btn:hover { border-color: var(--t2); background: var(--s2); }
+html[data-theme="light"] .clear-x-btn { background: #fff; }
+.clear-x-btn svg {
+  width: 12px; height: 12px;
+  stroke: var(--t2); fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.clear-x-btn.sel {
+  border-color: var(--t2);
+  background: var(--s2);
+}
+.clear-x-btn.sel svg { stroke: var(--text); }
+
+/* ── DELETE MODAL ── */
+.del-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+.del-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.del-check-row:hover { background: var(--s3); }
+.del-check-row.on { border-color: var(--t3); }
+.del-check-dot {
+  width: 10px; height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+.del-check-name {
+  font-size: 12px;
+  color: var(--t2);
+  flex: 1;
+}
+.del-check-row.on .del-check-name { color: var(--text); }
+.del-check-mark {
+  font-size: 12px;
+  color: var(--gold);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.del-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 /* ── INHERIT BUTTON ── */
@@ -614,31 +653,6 @@ body {
 .freq-total-lbl { font-size: 10px; color: var(--t3); flex: 1; }
 .freq-total-val { font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); }
 .freq-error { font-size: 10px; color: #ff5522; font-weight: 600; margin-left: 4px; }
-
-.ctx-check-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-top: 1px solid var(--border);
-  margin-top: 3px;
-  cursor: pointer;
-  transition: background .12s;
-}
-.ctx-check-row:hover { background: var(--s2); }
-.ctx-cb {
-  width: 15px; height: 15px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--s3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--gold);
-  flex-shrink: 0;
-}
-.ctx-cb-lbl { font-size: 11px; color: var(--t2); }
 
 .ctx-rm {
   display: block;
@@ -1139,7 +1153,7 @@ body {
     <button class="icon-btn" title="Presets" @click="openPresetModal">
       <svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 012-2h13"/><path d="M4 19a2 2 0 000 4h13a2 2 0 000-4H4z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="13" y2="11"/></svg>
     </button>
-    <button class="icon-btn danger" title="Clear current street" @click="clearCurrent">
+    <button class="icon-btn danger" title="Delete ranges" @click="openDeleteModal">
       <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
     </button>
     <div class="gear-wrap">
@@ -1290,10 +1304,7 @@ body {
             :style="{ width: cellUnfilled(cell.key) + '%' }"
           ></div>
         </div>
-        <span class="cell-label" :style="{ color: currentHS[cell.key]?.checked ? 'var(--gold)' : '' }">
-          {{ cell.label }}
-        </span>
-        <span v-if="currentHS[cell.key]?.checked" style="position:absolute;top:1px;right:2px;font-size:7px;color:var(--gold);">✓</span>
+        <span class="cell-label">{{ cell.label }}</span>
       </div>
     </div>
   </div>
@@ -1311,16 +1322,16 @@ body {
       :title="col.name"
       @click="selectedColor = col.id"
     ></div>
+    <!-- × クリアボタン -->
+    <button
+      class="clear-x-btn"
+      :class="{ sel: selectedColor === 0 }"
+      title="Erase hand"
+      @click="selectedColor = 0"
+    >
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
-
-  <!-- Clear ボタン（選択色ドット付き） -->
-  <button class="clear-sel-btn" @click="clearSelected">
-    <span
-      class="clear-dot"
-      :style="{ background: currentColors.find(c => c.id === selectedColor)?.bright || '#888' }"
-    ></span>
-    Clear
-  </button>
 
   <!-- Inherit ボタン（ポストフロップのみ） -->
   <button
@@ -1352,7 +1363,7 @@ body {
     <div class="range-pct">{{ stats.pct }}%</div>
     <div class="range-sub">{{ stats.combosLabel }}</div>
     <div class="color-stats">
-      <div v-for="row in stats.byColor" :key="row.id" class="cstat">
+      <div v-for="row in stats.byColor" :key="row.id" class="cstat" :style="{ opacity: parseFloat(row.combos) < 0.05 ? 0.35 : 1 }">
         <div class="cstat-dot" :style="{ background: row.bright }"></div>
         <span class="cstat-name">{{ row.name }}</span>
         <span class="cstat-val">{{ row.combos }} ({{ row.pct }}%)</span>
@@ -1404,10 +1415,6 @@ body {
     <span class="freq-total-val" :style="{ color: ctxTotalColor }">{{ ctxTotal }}%</span>
     <span style="font-size:10px;color:var(--t3);margin-left:2px;" v-if="ctxMaxFreq < 100">/ {{ ctxMaxFreq }}% max</span>
     <span class="freq-error">{{ ctxError }}</span>
-  </div>
-  <div class="ctx-check-row" @click="toggleCheck">
-    <div class="ctx-cb">{{ ctxChecked ? '✓' : '' }}</div>
-    <span class="ctx-cb-lbl">Checkmark (gold text)</span>
   </div>
   <button class="ctx-rm" @click="removeHand">Remove this hand</button>
 </div>
@@ -1479,6 +1486,50 @@ body {
     <div class="modal-actions">
       <button class="modal-btn" @click="addModal.open = false">Cancel</button>
       <button class="modal-btn primary" @click="confirmAddNode">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" v-if="deleteModal.open" @click.self="deleteModal.open = false">
+  <div class="modal">
+    <div class="modal-title">Delete ranges</div>
+    <div class="modal-label" style="margin-bottom:8px;">削除するカラーを選択してください</div>
+
+    <div class="del-check-list">
+      <!-- All -->
+      <div
+        class="del-check-row"
+        :class="{ on: deleteModal.selectedIds.length === currentColors.length }"
+        @click="toggleDeleteAll"
+      >
+        <div class="del-check-dot" style="background: var(--t3);"></div>
+        <span class="del-check-name" style="font-weight:600;">All (全消去)</span>
+        <span class="del-check-mark">{{ deleteModal.selectedIds.length === currentColors.length ? '✓' : '' }}</span>
+      </div>
+      <div class="del-sep"></div>
+      <!-- 各カラー -->
+      <div
+        v-for="col in currentColors"
+        :key="col.id"
+        class="del-check-row"
+        :class="{ on: deleteModal.selectedIds.includes(col.id) }"
+        @click="toggleDeleteId(col.id)"
+      >
+        <div class="del-check-dot" :style="{ background: col.bright }"></div>
+        <span class="del-check-name">{{ col.name }}</span>
+        <span class="del-check-mark">{{ deleteModal.selectedIds.includes(col.id) ? '✓' : '' }}</span>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-btn" @click="deleteModal.open = false">Cancel</button>
+      <button
+        class="modal-btn"
+        style="border-color:#6e2828; color:#e06060;"
+        :disabled="deleteModal.selectedIds.length === 0"
+        @click="confirmDelete"
+      >Delete</button>
     </div>
   </div>
 </div>
@@ -1591,7 +1642,7 @@ function makeColors(preset) {
 function makeHS() {
   const hs = {};
   RANKS.forEach((_,r) => RANKS.forEach((_,c) => {
-    hs[`${r}_${c}`] = { colors:{}, checked:false };
+    hs[`${r}_${c}`] = { colors:{} };
   }));
   return hs;
 }
@@ -1830,12 +1881,11 @@ createApp({
 
     function cellClass(k) {
       const hs = currentHS.value;
-      const s  = hs[k];
       const on = active(hs, k);
       const locked = isLockedInParent(k);
       if (locked) return 'locked';
       if (!on) return 'off';
-      return s?.checked ? 'checked' : '';
+      return '';
     }
 
     function cellSegments(k) {
@@ -1869,16 +1919,21 @@ createApp({
       const hs    = currentHS.value;
       const s     = hs[k];
       const c     = sel();
-      const maxPct = parentMaxFreq(k); // 親の割当%が上限
+
+      // ×ボタン選択中 → そのハンドを消去
+      if (c === 0) {
+        hs[k] = { colors:{} };
+        schedSave();
+        return;
+      }
+
+      const maxPct = parentMaxFreq(k);
 
       if (!active(hs, k)) {
-        // 初回割当：親の上限%で入れる
         s.colors = { [c]: maxPct };
       } else if ((s.colors[c] || 0) > 0) {
-        // 同色タップ → 削除
         delete s.colors[c];
       } else {
-        // 別色追加：現在の合計が上限以内なら均等分割して追加
         const existing = Object.keys(s.colors).map(Number);
         const allIds   = [...existing, c];
         const n        = allIds.length;
@@ -1959,7 +2014,7 @@ createApp({
       const [ri,ci] = ctxKey.value.split('_').map(Number);
       return hn(ri,ci) + ' — frequency';
     });
-    const ctxChecked = computed(() => currentHS.value[ctxKey.value]?.checked || false);
+    function removeHand() {
     const ctxFbarSegs = computed(() => {
       if (!ctxKey.value) return [];
       const s = currentHS.value[ctxKey.value];
@@ -1999,6 +2054,12 @@ createApp({
 
     function openCtx(k) {
       if (isLockedInParent(k)) return;
+      // ×ボタン選択中は長押しで消去→モーダルは開かない
+      if (sel() === 0) {
+        currentHS.value[k] = { colors:{} };
+        schedSave();
+        return;
+      }
       const hs = currentHS.value;
       if (!active(hs, k)) {
         const maxPct = parentMaxFreq(k);
@@ -2040,18 +2101,10 @@ createApp({
       schedSave();
     }
 
-    function toggleCheck() {
-      const k = ctxKey.value;
-      if (!k) return;
-      const s = currentHS.value[k];
-      s.checked = !s.checked;
-      schedSave();
-    }
-
     function removeHand() {
       const k = ctxKey.value;
       if (!k) return;
-      currentHS.value[k] = { colors:{}, checked:false };
+      currentHS.value[k] = { colors:{} };
       closeCtx();
       schedSave();
     }
@@ -2113,21 +2166,58 @@ createApp({
           name: c.name,
           combos: (by[c.id]||0).toFixed(1),
           pct: ((by[c.id]||0) / basis * 100).toFixed(1),
-        }))
-        .filter(r => parseFloat(r.combos) >= 0.05);
+        }));
 
       return { pct, combosLabel, byColor };
     });
 
+    /* ── DELETE MODAL ── */
+    const deleteModal = reactive({
+      open: false,
+      selectedIds: [],
+    });
+
+    function openDeleteModal() {
+      deleteModal.selectedIds = [];
+      deleteModal.open = true;
+    }
+
+    function toggleDeleteId(id) {
+      const idx = deleteModal.selectedIds.indexOf(id);
+      if (idx >= 0) deleteModal.selectedIds.splice(idx, 1);
+      else deleteModal.selectedIds.push(id);
+    }
+
+    function toggleDeleteAll() {
+      const all = currentColors.value.map(c => c.id);
+      if (deleteModal.selectedIds.length === all.length) {
+        deleteModal.selectedIds = [];
+      } else {
+        deleteModal.selectedIds = [...all];
+      }
+    }
+
+    function confirmDelete() {
+      if (deleteModal.selectedIds.length === 0) return;
+      const hs = currentHS.value;
+      const ids = deleteModal.selectedIds;
+      RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
+        const k = `${ri}_${ci}`;
+        ids.forEach(id => delete hs[k].colors[id]);
+      }));
+      deleteModal.open = false;
+      schedSave();
+      showToast('Deleted');
+    }
+
     /* ── CLEAR OPS ── */
     function clearCurrent() {
-      if (!confirm('Clear all hands on this street?')) return;
+      // 後方互換のため残す（使われなくなるが念のため）
       const hs = currentHS.value;
       RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
-        hs[`${ri}_${ci}`] = { colors:{}, checked:false };
+        hs[`${ri}_${ci}`] = { colors:{} };
       }));
       schedSave();
-      showToast('Cleared');
     }
 
     function clearSelected() {
@@ -2363,7 +2453,7 @@ createApp({
     function serializeHS(hs) {
       const out = {};
       Object.entries(hs).forEach(([k,v]) => {
-        if (Object.keys(v.colors).length || v.checked) out[k] = { colors: {...v.colors}, checked: v.checked };
+        if (Object.keys(v.colors).length) out[k] = { colors: {...v.colors} };
       });
       return out;
     }
@@ -2390,7 +2480,7 @@ createApp({
       if (src.colors) src.colors.forEach((c,i) => { if (target.colors[i]) Object.assign(target.colors[i], c); });
       if (src.hs) {
         Object.entries(src.hs).forEach(([k,v]) => {
-          if (target.hs[k]) target.hs[k] = { colors: v.colors || {}, checked: !!v.checked };
+          if (target.hs[k]) target.hs[k] = { colors: v.colors || {} };
         });
       }
       target.children = [];
@@ -2411,7 +2501,7 @@ createApp({
       session.preflop.children.splice(0);
       // reset hs
       RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
-        session.preflop.hs[`${ri}_${ci}`] = { colors:{}, checked:false };
+        session.preflop.hs[`${ri}_${ci}`] = { colors:{} };
       }));
       session.preflop.colors = makeColors('preflop');
       session.preflop.position = 'BTN';
@@ -2494,7 +2584,7 @@ createApp({
       // セッションを完全リセットしてから流し込む
       session.preflop.children.splice(0);
       RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
-        session.preflop.hs[`${ri}_${ci}`] = { colors:{}, checked:false };
+        session.preflop.hs[`${ri}_${ci}`] = { colors:{} };
       }));
       session.preflop.colors = makeColors('preflop');
       deserializeInto(session.preflop, entry.data);
@@ -2524,7 +2614,7 @@ createApp({
 
     /* ── INIT ── */
     onMounted(() => {
-      setTheme('dark');
+      setTheme('light');
       loadSave();
     });
 
@@ -2540,7 +2630,6 @@ createApp({
       ctxOpen: computed(() => ctxOpen.value),
       ctxKey: computed(() => ctxKey.value),
       ctxTitle,
-      ctxChecked,
       ctxFbarSegs,
       ctxTotal,
       ctxTotalColor,
@@ -2570,7 +2659,6 @@ createApp({
       closeCtx,
       ctxFreq,
       setFreq,
-      toggleCheck,
       removeHand,
       cellClass,
       cellSegments,
@@ -2584,6 +2672,11 @@ createApp({
       onCellTouchCancel,
       clearCurrent,
       clearSelected,
+      deleteModal,
+      openDeleteModal,
+      toggleDeleteId,
+      toggleDeleteAll,
+      confirmDelete,
       openAddModal,
       confirmAddNode,
       deleteCurrentNode,
