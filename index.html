@@ -1931,18 +1931,18 @@ createApp({
         return;
       }
 
-      const maxPct = parentMaxFreq(k);
+      const maxPct = parentMaxFreq(k);  // 描画用（handleClickでは未使用）
 
       if (!active(hs, k)) {
-        s.colors = { [c]: maxPct };
+        s.colors = { [c]: 100 };
       } else if ((s.colors[c] || 0) > 0) {
         delete s.colors[c];
       } else {
         const existing = Object.keys(s.colors).map(Number);
         const allIds   = [...existing, c];
         const n        = allIds.length;
-        const base     = Math.floor(maxPct / n);
-        const rem      = maxPct - base * n;
+        const base     = Math.floor(100 / n);
+        const rem      = 100 - base * n;
         allIds.forEach((id, i) => { s.colors[id] = base + (i < rem ? 1 : 0); });
       }
       schedSave();
@@ -2044,9 +2044,8 @@ createApp({
     });
     const ctxTotalColor = computed(() => {
       const t = ctxTotal.value;
-      const m = ctxMaxFreq.value;
-      if (t === 0 || t === m) return 'var(--text)';
-      if (t > m) return '#ff5522';
+      if (t === 0 || t === 100) return 'var(--text)';
+      if (t > 100) return '#ff5522';
       return '#f0c800';
     });
 
@@ -2071,21 +2070,20 @@ createApp({
     }
 
     function setFreq(cid, rawVal, inputEl) {
-      const k      = ctxKey.value;
+      const k   = ctxKey.value;
       if (!k) return;
-      const s      = currentHS.value[k];
-      const maxPct = parentMaxFreq(k);
-      const val    = Math.max(0, Math.min(maxPct, parseInt(rawVal) || 0));
-      const prev   = s.colors[cid] || 0;
+      const s   = currentHS.value[k];
+      const val = Math.max(0, Math.min(100, parseInt(rawVal) || 0));
+      const prev = s.colors[cid] || 0;
 
       if (val === 0) delete s.colors[cid];
       else s.colors[cid] = val;
 
       const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
-      if (total > maxPct) {
+      if (total > 100) {
         if (prev === 0) delete s.colors[cid]; else s.colors[cid] = prev;
         ctxErrId.value = cid;
-        ctxError.value = `Total ${total}% — max ${maxPct}%`;
+        ctxError.value = `Total ${total}% — max 100%`;
         return;
       }
       ctxErrId.value = null;
