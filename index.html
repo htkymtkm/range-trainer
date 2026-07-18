@@ -158,7 +158,8 @@ body {
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 5px 4px;
+  height: 44px;
+  padding: 0 4px;
   border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
@@ -211,8 +212,10 @@ body {
 .nav-add-wrap {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   padding-left: 4px;
+  height: 44px;
 }
 .nav-add-btn {
   display: flex;
@@ -341,15 +344,14 @@ body {
 /* ── COLOR BAR ── */
 .color-section {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
   margin-bottom: 10px;
-  overflow: hidden;
 }
 .color-bar { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
 .color-btn {
-  width: 26px; height: 26px;
+  width: 28px; height: 28px;
   border-radius: 50%;
   border: 2.5px solid transparent;
   cursor: pointer;
@@ -1198,7 +1200,7 @@ body {
       <span class="nav-street-label">Flop</span>
       <span class="nav-board" v-if="session.flop">
         <template v-for="c in session.flop.board" :key="c">
-          <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+          <span :class="suitClass(c)" style="font-size:11px;font-weight:700;">{{ formatCard(c) }}</span>
         </template>
       </span>
       <span class="nav-board empty" v-else>—</span>
@@ -1217,7 +1219,7 @@ body {
       <span class="nav-street-label">Turn</span>
       <span class="nav-board" v-if="session.turn">
         <template v-for="c in session.turn.board" :key="c">
-          <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+          <span :class="suitClass(c)" style="font-size:11px;font-weight:700;">{{ formatCard(c) }}</span>
         </template>
       </span>
       <span class="nav-board empty" v-else>—</span>
@@ -1236,7 +1238,7 @@ body {
       <span class="nav-street-label">River</span>
       <span class="nav-board" v-if="session.river">
         <template v-for="c in session.river.board" :key="c">
-          <span :class="suitClass(c)">{{ formatCard(c) }}</span>
+          <span :class="suitClass(c)" style="font-size:11px;font-weight:700;">{{ formatCard(c) }}</span>
         </template>
       </span>
       <span class="nav-board empty" v-else>—</span>
@@ -1851,12 +1853,14 @@ createApp({
     }
 
     function cellUnfilled(k) {
-      const hs    = currentHS.value;
-      const s     = hs[k];
+      const hs     = currentHS.value;
+      const s      = hs[k];
       if (!s) return 0;
-      const maxPct = parentMaxFreq(k);  // 親の割当%が上限
+      const maxPct = parentMaxFreq(k);
       const total  = Object.values(s.colors).reduce((a,v) => a+v, 0);
-      return total < maxPct ? (maxPct - total) : 0;
+      if (total >= maxPct) return 0;
+      // cellSegmentsと同じmaxPct基準で正規化した空き幅を返す
+      return ((maxPct - total) / maxPct * 100);
     }
 
     /* ── CLICK ── */
@@ -2117,6 +2121,7 @@ createApp({
 
     /* ── CLEAR OPS ── */
     function clearCurrent() {
+      if (!confirm('Clear all hands on this street?')) return;
       const hs = currentHS.value;
       RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
         hs[`${ri}_${ci}`] = { colors:{}, checked:false };
