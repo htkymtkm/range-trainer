@@ -115,7 +115,7 @@ body {
   transition: background .12s, color .12s, border-color .12s;
 }
 .icon-btn:hover, .icon-btn:active { background: var(--s2); color: var(--text); }
-.icon-btn.danger { color: #e06060; border-color: #5a2828; }
+.icon-btn.danger { color: #e06060; border-color: var(--border); }
 .icon-btn.danger:hover { background: #2a1010; color: #ff9090; border-color: #7a3030; }
 .icon-btn svg {
   width: 15px; height: 15px;
@@ -1908,28 +1908,41 @@ createApp({
       const maxPct  = parentMaxFreq(k);
       const isPost  = node().street !== 'preflop';
 
-      if (!entries.length) {
-        // ポストフロップ未塗り：maxPct分だけcell-offで描画
-        if (isPost && maxPct > 0) {
-          return [{ cid: 'empty', w: maxPct, color: 'var(--cell-off)' }];
-        }
-        return [];
+      if (!isPost) {
+        // プリフロップ：色セグメントのみ（余りはcellUnfilledで表現）
+        if (!entries.length) return [];
+        return entries.map(([cid, val]) => ({
+          cid,
+          w: val,
+          color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
+        }));
       }
 
-      // 色セグメント幅 = val/100 * maxPct
-      const segs = entries.map(([cid, val]) => ({
-        cid,
-        w: (val / 100) * maxPct,
-        color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
-      }));
+      // ポストフロップ
+      const segs = [];
 
-      // ポストフロップ：色で塗られていない残り部分をcell-offで描画
-      if (isPost) {
-        const filled = segs.reduce((a, seg) => a + seg.w, 0);
-        const remain = maxPct - filled;
-        if (remain > 0.01) {
-          segs.push({ cid: 'dark', w: remain, color: 'var(--cell-off)' });
-        }
+      // 色セグメント（val/100 * maxPct）
+      let filled = 0;
+      entries.forEach(([cid, val]) => {
+        const w = (val / 100) * maxPct;
+        segs.push({
+          cid,
+          w,
+          color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
+        });
+        filled += w;
+      });
+
+      // 継承済み未塗り部分 → cell-off（薄い灰）
+      const remain = maxPct - filled;
+      if (remain > 0.01) {
+        segs.push({ cid: 'light', w: remain, color: 'var(--cell-off)' });
+      }
+
+      // 継承外の余り → cell-lock（暗い灰）
+      const outer = 100 - maxPct;
+      if (outer > 0.01) {
+        segs.push({ cid: 'dark', w: outer, color: 'var(--cell-lock)' });
       }
 
       return segs;
