@@ -334,7 +334,7 @@ body {
   display: flex;
 }
 .cell-seg { height: 100%; }
-.cell-unfilled { height: 100%; background: var(--unfill); }
+.cell-unfilled { height: 100%; background: var(--cell-off); }
 
 /* ── COLOR BAR ── */
 .color-section {
@@ -1939,8 +1939,6 @@ createApp({
       const s      = hs[k];
       if (!s) return 0;
       const maxPct = parentMaxFreq(k);
-      // 薄い灰 = 親の割当外（100% - maxPct）、常に固定
-      // プリフロップは maxPct=100 なので薄い灰は total < 100 のときだけ
       if (node().street === 'preflop') {
         const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
         return total < 100 ? (100 - total) : 0;
