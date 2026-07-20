@@ -2182,8 +2182,10 @@ createApp({
         const combos  = hc(ri,ci);
         const entries = Object.entries(s.colors||{}).filter(([,v]) => v > 0);
         if (!entries.length) return;
+        const maxPct  = isPost ? parentMaxFreq(`${ri}_${ci}`) : 100;
         entries.forEach(([cid,val]) => {
-          const eff = (val / 100) * combos;   // 常に100基準で実頻度を計算
+          // ポストフロップ：val は「フロップ内での%」なので親の割当%も掛ける
+          const eff = (val / 100) * (maxPct / 100) * combos;
           by[parseInt(cid)] = (by[parseInt(cid)] || 0) + eff;
           overall += eff;
         });
