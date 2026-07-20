@@ -285,7 +285,7 @@ body {
   position: relative;
   isolation: isolate;
   user-select: none;
-  border: 1px solid transparent;
+  border: none;
   overflow: hidden;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -309,20 +309,17 @@ body {
 .cell.off {
   background: var(--cell-off);
   color: var(--cell-fg);
-  border-color: var(--cell-bd);
 }
 /* locked = not in parent range */
 .cell.locked {
   background: var(--cell-lock-light);
   color: var(--cell-lock-fg);
-  border-color: var(--cell-lock-light);
   cursor: default;
 }
 /* postflop未塗り：親レンジ内だが自分は未選択 */
 .cell.off-post {
   background: transparent;
   color: var(--cell-fg);
-  border-color: var(--cell-bd);
 }
 .cell.off-post .cell-label {
   color: var(--cell-fg);
