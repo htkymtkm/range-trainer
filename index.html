@@ -1296,7 +1296,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
             v-for="seg in cellSegments(cell.key)"
             :key="seg.cid"
             class="cell-seg"
-            :style="{ width: seg.w + '%', background: seg.color, opacity: seg.opacity ?? 1 }"
+            :style="{ width: seg.w + '%', background: seg.color }"
           ></div>
           <div
             v-if="cellUnfilled(cell.key) > 0"
@@ -1939,10 +1939,10 @@ createApp({
         segs.push({ cid: 'light', w: remain, color: 'var(--cell-off)' });
       }
 
-      // 継承外の余り → cell-lock（暗い灰・lockedと同じ見た目）
+      // 継承外の余り → cell-lock（暗い灰）
       const outer = 100 - maxPct;
       if (outer > 0.01) {
-        segs.push({ cid: 'dark', w: outer, color: 'var(--cell-lock)', opacity: 0.5 });
+        segs.push({ cid: 'dark', w: outer, color: 'var(--cell-lock)' });
       }
 
       return segs;
