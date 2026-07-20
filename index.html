@@ -1908,13 +1908,7 @@ createApp({
       const maxPct  = parentMaxFreq(k);
       const isPost  = node().street !== 'preflop';
 
-      if (!entries.length) {
-        // ポストフロップ未塗り：親の割当%分だけcell-offで描画
-        if (isPost && maxPct > 0) {
-          return [{ cid: 'empty', w: maxPct, color: 'var(--cell-off)' }];
-        }
-        return [];
-      }
+      if (!entries.length) return [];
 
       // 色セグメント幅 = val/100 * maxPct
       const segs = entries.map(([cid, val]) => ({
@@ -1923,28 +1917,17 @@ createApp({
         color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
       }));
 
-      // ポストフロップのみ：残りの未塗り部分をcell-offで描画
-      if (isPost) {
-        const filled = segs.reduce((a, seg) => a + seg.w, 0);
-        const dark   = maxPct - filled;
-        if (dark > 0.01) {
-          segs.push({ cid: 'dark', w: dark, color: 'var(--cell-off)' });
-        }
-      }
-
       return segs;
     }
 
     function cellUnfilled(k) {
-      const hs     = currentHS.value;
-      const s      = hs[k];
+      const hs = currentHS.value;
+      const s  = hs[k];
       if (!s) return 0;
-      const maxPct = parentMaxFreq(k);
-      if (node().street === 'preflop') {
-        const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
-        return total < 100 ? (100 - total) : 0;
-      }
-      return 100 - maxPct;
+      // プリフロップのみ：塗り残しをcell-off色で表現
+      if (node().street !== 'preflop') return 0;
+      const total = Object.values(s.colors).reduce((a,v) => a+v, 0);
+      return total < 100 ? (100 - total) : 0;
     }
 
     /* ── CLICK ── */
