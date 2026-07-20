@@ -316,7 +316,7 @@ body {
 }
 /* postflop未塗り：親レンジ内だが自分は未選択 */
 .cell.off-post {
-  background: var(--cell-off);
+  background: transparent;
   color: var(--cell-fg);
   border-color: var(--cell-bd);
 }
@@ -1908,7 +1908,13 @@ createApp({
       const maxPct  = parentMaxFreq(k);
       const isPost  = node().street !== 'preflop';
 
-      if (!entries.length) return [];
+      if (!entries.length) {
+        // ポストフロップ未塗り：maxPct分だけcell-offで描画
+        if (isPost && maxPct > 0) {
+          return [{ cid: 'empty', w: maxPct, color: 'var(--cell-off)' }];
+        }
+        return [];
+      }
 
       // 色セグメント幅 = val/100 * maxPct
       const segs = entries.map(([cid, val]) => ({
@@ -1916,6 +1922,15 @@ createApp({
         w: (val / 100) * maxPct,
         color: (node().colors.find(c => c.id === parseInt(cid)) || {}).bright || '#888',
       }));
+
+      // ポストフロップ：色で塗られていない残り部分をcell-offで描画
+      if (isPost) {
+        const filled = segs.reduce((a, seg) => a + seg.w, 0);
+        const remain = maxPct - filled;
+        if (remain > 0.01) {
+          segs.push({ cid: 'dark', w: remain, color: 'var(--cell-off)' });
+        }
+      }
 
       return segs;
     }
