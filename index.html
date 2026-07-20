@@ -325,14 +325,12 @@ body {
 }
 .cell-label {
   position: relative;
-  z-index: 1;
   pointer-events: none;
   letter-spacing: -.4px;
 }
 .cell-bg {
   position: absolute; top: 0; right: 0; bottom: 0; left: 0;
   display: flex;
-  z-index: 0;
 }
 .cell-seg { height: 100%; }
 .cell-unfilled { height: 100%; background: var(--cell-off); }
@@ -1291,6 +1289,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
         @touchcancel="onCellTouchCancel(cell.key)"
         @contextmenu.prevent="openCtx(cell.key)"
       >
+        <span class="cell-label">{{ cell.label }}</span>
         <div class="cell-bg">
           <div
             v-for="seg in cellSegments(cell.key)"
@@ -1304,7 +1303,6 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
             :style="{ width: cellUnfilled(cell.key) + '%' }"
           ></div>
         </div>
-        <span class="cell-label">{{ cell.label }}</span>
       </div>
     </div>
   </div>
