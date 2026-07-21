@@ -2621,19 +2621,23 @@ createApp({
     }
 
     function presetMeta(preflopNode) {
-      // 線形ツリーを辿ってストリートのボード情報をサマリ表示
+      // 例: Preflop > AsKh6d > 5h > 4c
       const parts = ['Preflop'];
       let n = preflopNode;
-      const streetNames = ['Flop', 'Turn', 'River'];
       let si = 0;
       while (n.children && n.children[0] && si < 3) {
         const child = n.children[0];
-        const board = (child.board || []).join('').toUpperCase();
-        parts.push(board ? `${streetNames[si]} ${board}` : streetNames[si]);
+        // ランク大文字・スート小文字（例: As Kh 6d → AsKh6d）
+        const board = (child.board || []).map(c => {
+          const rank = c.slice(0, -1).toUpperCase();
+          const suit = c.slice(-1).toLowerCase();
+          return rank + suit;
+        }).join('');
+        parts.push(board || (si === 0 ? 'Flop' : si === 1 ? 'Turn' : 'River'));
         n = child;
         si++;
       }
-      return parts.join(' › ');
+      return parts.join(' > ');
     }
 
     function openPresetModal() {
