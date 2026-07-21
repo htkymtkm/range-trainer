@@ -1075,6 +1075,20 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
   transition: background .12s, color .12s;
 }
 .preset-edit-btn:hover { background: var(--s2); color: var(--t2); }
+.preset-edit-inp {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  -webkit-user-select: text;
+  user-select: text;
+  min-width: 0;
+}
+.preset-edit-inp:focus { outline: none; border-color: var(--t2); }
 
   display: flex;
   gap: 8px;
@@ -1606,7 +1620,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
           <!-- 編集中はinput、通常は名前表示 -->
           <template v-if="presetModal.editingIdx === i">
             <input
-              class="preset-name-inp"
+              class="preset-edit-inp"
               type="text"
               lang="en"
               inputmode="text"
@@ -1614,8 +1628,6 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
               @input="presetModal.editingName = $event.target.value"
               @keydown.enter="confirmEditPreset(i)"
               @keydown.escape="presetModal.editingIdx = -1"
-              style="margin-bottom:0; font-size:12px;"
-              ref="editInput"
             />
           </template>
           <template v-else>
@@ -2027,19 +2039,18 @@ createApp({
         return;
       }
 
-      const maxPct = parentMaxFreq(k);  // 描画用（handleClickでは未使用）
-
       if (!active(hs, k)) {
+        // 未塗り → 100%で入力
         s.colors = { [c]: 100 };
       } else if ((s.colors[c] || 0) > 0) {
+        // 同色タップ → 削除
         delete s.colors[c];
       } else {
-        const existing = Object.keys(s.colors).map(Number);
-        const allIds   = [...existing, c];
-        const n        = allIds.length;
-        const base     = Math.floor(100 / n);
-        const rem      = 100 - base * n;
-        allIds.forEach((id, i) => { s.colors[id] = base + (i < rem ? 1 : 0); });
+        // 別色追加 → 余りに入力（余りが0なら何もしない）
+        const total  = Object.values(s.colors).reduce((a,v) => a+v, 0);
+        const remain = 100 - total;
+        if (remain <= 0) return;
+        s.colors[c] = remain;
       }
       schedSave();
     }
