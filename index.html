@@ -543,15 +543,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
 .cstat-name { font-size: 11px; color: var(--t2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cstat-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text); flex-shrink: 0; }
 
-/* ── HINT BAR ── */
-.hint-bar {
-  margin-top: 8px;
-  padding: 5px 8px;
-  font-size: 10px;
-  color: var(--t3);
-  text-align: center;
-  letter-spacing: .04em;
-}
+
 
 /* ── CONTEXT MENU ── */
 .ctx-overlay {
@@ -1377,7 +1369,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
   </div>
 </div>
 
-<div class="hint-bar">Tap: assign color &nbsp;|&nbsp; Hold: set frequency &nbsp;|&nbsp; 🔒 = not in parent range</div>
+
 
 <!-- OVERLAY -->
 <div class="ctx-overlay" :class="{ open: ctxOpen }" @click="closeCtx"></div>
@@ -1501,7 +1493,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
   <div class="modal">
     <div class="modal-title">Reset all data</div>
     <p style="font-size:12px; color:var(--t2); margin-bottom:16px; line-height:1.6;">
-      すべてのレンジデータをリセットします。<br>この操作は元に戻せません。
+      All range data will be reset to defaults.<br>This action cannot be undone.
     </p>
     <div class="modal-actions">
       <button class="modal-btn" @click="resetModal.open = false">Cancel</button>
@@ -1524,7 +1516,7 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
         @click="toggleDeleteAll"
       >
         <div class="del-check-dot" style="background: var(--t3);"></div>
-        <span class="del-check-name" style="font-weight:600;">All (全消去)</span>
+        <span class="del-check-name" style="font-weight:600;">All</span>
         <span class="del-check-mark">{{ deleteModal.selectedIds.length === currentColors.length ? '✓' : '' }}</span>
       </div>
       <div class="del-sep"></div>
