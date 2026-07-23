@@ -1061,7 +1061,47 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
   color: var(--t3);
   font-size: 12px;
 }
-.preset-edit-btn {
+.preset-edit-mode-btn {
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--t2);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background .12s, color .12s;
+}
+.preset-edit-mode-btn:hover { background: var(--s2); color: var(--text); }
+.preset-edit-mode-btn.active { border-color: var(--accent); color: var(--accent); }
+
+.preset-handle {
+  color: var(--t3);
+  font-size: 16px;
+  padding: 0 4px;
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.preset-move-btn {
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  color: var(--t2);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s, color .12s;
+}
+.preset-move-btn:hover:not(:disabled) { background: var(--s3); color: var(--text); }
+.preset-move-btn:disabled { opacity: 0.3; cursor: default; }
+
+
   width: 26px; height: 26px;
   border-radius: 5px;
   border: 1px solid transparent;
@@ -1601,14 +1641,23 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
 </div>
 
 <!-- PRESET MODAL -->
-<div class="modal-overlay" v-if="presetModal.open" @click.self="presetModal.open = false">
+<div class="modal-overlay" v-if="presetModal.open" @click.self="closePresetModal">
   <div class="modal" style="width:380px;">
     <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
       <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--t2);fill:none;stroke-width:1.8;stroke-linecap:round;"><path d="M4 19V5a2 2 0 012-2h13"/><path d="M4 19a2 2 0 000 4h13a2 2 0 000-4H4z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="13" y2="11"/></svg>
       Presets
-      <button @click="presetModal.open=false" style="margin-left:auto;width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;">
-        <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+        <!-- Edit / Done ボタン -->
+        <button
+          v-if="presetModal.list.length > 0"
+          class="preset-edit-mode-btn"
+          :class="{ active: presetModal.editMode }"
+          @click="toggleEditMode"
+        >{{ presetModal.editMode ? 'Done' : 'Edit' }}</button>
+        <button @click="closePresetModal" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--s2);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 一覧 -->
@@ -1617,51 +1666,54 @@ html[data-theme="light"] .clear-x-btn { background: #fff; }
         No presets saved yet.<br>Save the current session below.
       </div>
       <div v-for="(p, i) in presetModal.list" :key="p.id" class="preset-item">
-        <div class="preset-item-info">
-          <!-- 編集中はinput、通常は名前表示 -->
-          <template v-if="presetModal.editingIdx === i">
-            <input
-              class="preset-edit-inp"
-              type="text"
-              lang="en"
-              inputmode="text"
-              :value="presetModal.editingName"
-              @input="presetModal.editingName = $event.target.value"
-              @keydown.enter="confirmEditPreset(i)"
-              @keydown.escape="presetModal.editingIdx = -1"
-            />
-          </template>
-          <template v-else>
+
+        <!-- 通常モード -->
+        <template v-if="!presetModal.editMode">
+          <div class="preset-item-info" @click="loadPreset(i)" style="cursor:pointer;">
             <div class="preset-item-name">{{ p.name }}</div>
             <div class="preset-item-meta">{{ p.meta }}</div>
-          </template>
-        </div>
-        <!-- 編集中はConfirm/Cancel、通常はEdit/Load/Delete -->
-        <template v-if="presetModal.editingIdx === i">
-          <button class="preset-load-btn" @click="confirmEditPreset(i)">OK</button>
-          <button class="preset-del-btn" @click="presetModal.editingIdx = -1">
-            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </template>
-        <template v-else>
-          <button class="preset-edit-btn" @click="startEditPreset(i)" title="Rename">
-            <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
+          </div>
           <button class="preset-load-btn" @click="loadPreset(i)">Load</button>
+        </template>
+
+        <!-- 編集モード -->
+        <template v-else>
+          <!-- ハンドル -->
+          <span class="preset-handle">≡</span>
+          <!-- 名前（タップでRename） -->
+          <div class="preset-item-info" style="flex:1;min-width:0;">
+            <template v-if="presetModal.editingIdx === i">
+              <input
+                class="preset-edit-inp"
+                type="text" lang="en" inputmode="text"
+                :value="presetModal.editingName"
+                @input="presetModal.editingName = $event.target.value"
+                @keydown.enter="confirmEditPreset(i)"
+                @keydown.escape="presetModal.editingIdx = -1"
+              />
+            </template>
+            <template v-else>
+              <div class="preset-item-name" @click="startEditPreset(i)" style="cursor:pointer;">{{ p.name }}</div>
+              <div class="preset-item-meta">{{ p.meta }}</div>
+            </template>
+          </div>
+          <!-- 上下ボタン -->
+          <button class="preset-move-btn" @click="movePreset(i, -1)" :disabled="i === 0">↑</button>
+          <button class="preset-move-btn" @click="movePreset(i, 1)" :disabled="i === presetModal.list.length - 1">↓</button>
+          <!-- 削除 -->
           <button class="preset-del-btn" @click="deletePreset(i)">
             <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </template>
+
       </div>
     </div>
 
-    <!-- 現在のセッションを保存 -->
-    <div class="preset-save-row">
+    <!-- 保存欄（編集モード中は非表示） -->
+    <div class="preset-save-row" v-if="!presetModal.editMode">
       <input
         class="preset-name-inp"
-        type="text"
-        lang="en"
-        inputmode="text"
+        type="text" lang="en" inputmode="text"
         v-model="presetModal.newName"
         placeholder="Preset name (e.g. BTN RFI)"
         @keydown.enter="savePreset"
@@ -2605,6 +2657,7 @@ createApp({
       newName: '',
       editingIdx: -1,
       editingName: '',
+      editMode: false,
     });
 
     function loadPresetList() {
@@ -2638,6 +2691,27 @@ createApp({
         si++;
       }
       return parts.join(' > ');
+    }
+
+    function closePresetModal() {
+      presetModal.open = false;
+      presetModal.editMode = false;
+      presetModal.editingIdx = -1;
+    }
+
+    function toggleEditMode() {
+      presetModal.editMode = !presetModal.editMode;
+      presetModal.editingIdx = -1;
+    }
+
+    function movePreset(i, dir) {
+      const j = i + dir;
+      if (j < 0 || j >= presetModal.list.length) return;
+      const list = presetModal.list;
+      const tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+      savePresetList();
     }
 
     function openPresetModal() {
@@ -2790,9 +2864,12 @@ createApp({
       confirmReset,
       presetModal,
       openPresetModal,
+      closePresetModal,
+      toggleEditMode,
       savePreset,
       loadPreset,
       deletePreset,
+      movePreset,
       startEditPreset,
       confirmEditPreset,
       showToast,
