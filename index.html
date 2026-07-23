@@ -2734,7 +2734,7 @@ createApp({
         meta: presetMeta(data),
         data,
       };
-      presetModal.list.unshift(entry);
+      presetModal.list.push(entry);
       savePresetList();
       presetModal.newName = '';
       showToast(`Saved: "${name}"`);
