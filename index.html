@@ -1804,6 +1804,72 @@ function isValidCard(s) {
   return VALID_RANKS_SET.has(r) && VALID_SUITS_SET.has(su);
 }
 
+/* ── CARD REMOVAL ── */
+// ボードカードをパース（例: "As" → {rank:'A', suit:'s'}）
+function parseCard(code) {
+  if (!code || code.length < 2) return null;
+  return { rank: code.slice(0,-1).toUpperCase(), suit: code.slice(-1).toLowerCase() };
+}
+
+// そのハンド（ri,ci）のボード後の有効コンボ数を返す
+// hc(ri,ci) で通常コンボ数、ボードカードで除外
+function effectiveCombos(ri, ci, boardCards) {
+  const total = hc(ri, ci);
+  if (!boardCards || boardCards.length === 0) return total;
+
+  const r1 = RANKS[ri]; // 上位ランク（またはペア）
+  const r2 = RANKS[ci]; // 下位ランク
+  const suits = ['s','h','d','c'];
+
+  // 全コンボを列挙して除外
+  let valid = 0;
+
+  if (ri === ci) {
+    // ペア：C(4,2)=6コンボ → 4スートの組み合わせ
+    const pairs = [];
+    for (let i = 0; i < suits.length; i++) {
+      for (let j = i+1; j < suits.length; j++) {
+        pairs.push([r1+suits[i], r1+suits[j]]);
+      }
+    }
+    valid = pairs.filter(([a,b]) =>
+      !boardCards.some(bc => bc === a) && !boardCards.some(bc => bc === b)
+    ).length;
+  } else if (ri < ci) {
+    // スーテッド：同スートの組み合わせ4通り
+    valid = suits.filter(s =>
+      !boardCards.some(bc => bc === r1+s) && !boardCards.some(bc => bc === r2+s)
+    ).length;
+  } else {
+    // オフスーツ：異スートの組み合わせ 4×4-4=12通り
+    let count = 0;
+    for (const s1 of suits) {
+      for (const s2 of suits) {
+        if (s1 === s2) continue;
+        if (!boardCards.some(bc => bc === r1+s1) && !boardCards.some(bc => bc === r2+s2)) {
+          count++;
+        }
+      }
+    }
+    valid = count;
+  }
+  return valid;
+}
+
+// 現在のストリートのボードカード全体（フロップ+ターン+リバー）を収集
+function collectBoardCards(n) {
+  // 現在のノードの祖先を遡りボードカードを集める
+  const cards = [];
+  // フラットに全ストリートのboardを集める
+  function walk(node) {
+    if (!node) return;
+    (node.board || []).forEach(c => cards.push(c.toLowerCase()));
+    (node.children || []).forEach(walk);
+  }
+  // プリフロップから現在ノードまでのパスのboardだけ必要
+  return cards;
+}
+
 /* ── MAKE NODE ── */
 function makeNode(street, board, label, preset) {
   return { street, board, label, preset, hs: makeHS(), children: [], colors: makeColors(preset), position: null, inheritColors: null };
@@ -1963,6 +2029,32 @@ createApp({
 
     function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : ''; }
 
+    /* ── BOARD CARDS FOR REMOVAL ── */
+    // 現在ノードに至るまでのボードカードを収集
+    const currentBoardCards = computed(() => {
+      const n = node();
+      if (n.street === 'preflop') return [];
+      const cards = [];
+      // フロップ
+      if (session.flop) session.flop.board.forEach(c => cards.push(c.toLowerCase()));
+      // ターン
+      if (session.turn && (n.street === 'turn' || n.street === 'river')) {
+        session.turn.board.forEach(c => cards.push(c.toLowerCase()));
+      }
+      // リバー
+      if (session.river && n.street === 'river') {
+        session.river.board.forEach(c => cards.push(c.toLowerCase()));
+      }
+      return cards;
+    });
+
+    // セルキーからリムーバル後有効コンボ数を返す
+    function effectiveCombosForCell(ri, ci) {
+      const board = currentBoardCards.value;
+      if (!board.length) return hc(ri, ci);
+      return effectiveCombos(ri, ci, board);
+    }
+
     /* ── PARENT RANGE (for locking) ── */
     function isLockedInParent(k) {
       const n = node();
@@ -2035,17 +2127,25 @@ createApp({
         }));
       }
 
-      // ポストフロップ
+      // ポストフロップ：リムーバル計算
+      const [ri, ci] = k.split('_').map(Number);
+      const totalCombos   = hc(ri, ci);
+      const validCombos   = effectiveCombosForCell(ri, ci);
+      const validRate     = totalCombos > 0 ? validCombos / totalCombos : 1;
+      // リムーバルによって除外される部分（maxPctの中でvalidRateに満たない分）
+      const removalPct    = maxPct * (1 - validRate);
+      const effectivePct  = maxPct * validRate; // 有効な範囲
+
       const segs = [];
       let filled = 0;
 
       if (!entries.length) {
-        // 未塗り：maxPct分だけcell-inheritで描画
-        if (maxPct > 0) segs.push({ cid: 'empty', w: maxPct, color: 'var(--cell-inherit)' });
+        // 未塗り：有効範囲をcell-inheritで描画
+        if (effectivePct > 0.01) segs.push({ cid: 'empty', w: effectivePct, color: 'var(--cell-inherit)' });
       } else {
-        // 色セグメント（val/100 * maxPct）
+        // 色セグメント（val/100 * effectivePct）
         entries.forEach(([cid, val]) => {
-          const w = (val / 100) * maxPct;
+          const w = (val / 100) * effectivePct;
           segs.push({
             cid,
             w,
@@ -2053,14 +2153,19 @@ createApp({
           });
           filled += w;
         });
-        // 継承済み未塗り部分 → cell-inherit（やや濃い灰）
-        const remain = maxPct - filled;
+        // 継承済み未塗り部分
+        const remain = effectivePct - filled;
         if (remain > 0.01) {
           segs.push({ cid: 'light', w: remain, color: 'var(--cell-inherit)' });
         }
       }
 
-      // 継承外の余り → cell-lock-light（lockedと同じ見た目）
+      // リムーバル除外分 → 黒
+      if (removalPct > 0.01) {
+        segs.push({ cid: 'removal', w: removalPct, color: '#1a1a1a' });
+      }
+
+      // 継承外の余り → cell-lock-light
       const outer = 100 - maxPct;
       if (outer > 0.01) {
         segs.push({ cid: 'dark', w: outer, color: 'var(--cell-lock-light)' });
@@ -2268,21 +2373,23 @@ createApp({
       const isPost = n.street !== 'preflop';
       const parent = isPost ? parentOf(n) : null;
 
-      // total parent combos (basis for postflop %)
+      // total parent combos with removal (basis for postflop %)
       let parentTotal = 0;
       if (parent) {
         RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
           const k = `${ri}_${ci}`;
           const ps = parent.hs[k];
-          const combos = hc(ri,ci);
           const inh = n.inheritColors;
           const entries = Object.entries(ps.colors||{}).filter(([cid,v]) => {
             if (v <= 0) return false;
             if (inh && inh.length > 0) return inh.includes(parseInt(cid));
             return true;
           });
+          if (!entries.length) return;
+          // リムーバル後の有効コンボ数で計算
+          const validCombos = effectiveCombosForCell(ri, ci);
           entries.forEach(([,val]) => {
-            parentTotal += (val / 100) * combos;  // 常に100基準
+            parentTotal += (val / 100) * validCombos;
           });
         }));
       }
@@ -2295,13 +2402,13 @@ createApp({
       RANKS.forEach((_,ri) => RANKS.forEach((_,ci) => {
         const k       = `${ri}_${ci}`;
         const s       = hs[k];
-        const combos  = hc(ri,ci);
         const entries = Object.entries(s.colors||{}).filter(([,v]) => v > 0);
         if (!entries.length) return;
         const maxPct  = isPost ? parentMaxFreq(`${ri}_${ci}`) : 100;
+        // リムーバル後の有効コンボ数
+        const validCombos = isPost ? effectiveCombosForCell(ri, ci) : hc(ri, ci);
         entries.forEach(([cid,val]) => {
-          // ポストフロップ：val は「フロップ内での%」なので親の割当%も掛ける
-          const eff = (val / 100) * (maxPct / 100) * combos;
+          const eff = (val / 100) * (maxPct / 100) * validCombos;
           by[parseInt(cid)] = (by[parseInt(cid)] || 0) + eff;
           overall += eff;
         });
@@ -2827,6 +2934,7 @@ createApp({
       currentPreset,
       currentHS,
       currentStreetLabel,
+      currentBoardCards,
       stats,
       canAddChild,
       nextStreetLabel,
