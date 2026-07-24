@@ -1817,41 +1817,35 @@ function effectiveCombos(ri, ci, boardCards) {
   const total = hc(ri, ci);
   if (!boardCards || boardCards.length === 0) return total;
 
-  const r1 = RANKS[ri]; // 上位ランク（またはペア）
-  const r2 = RANKS[ci]; // 下位ランク
+  const r1 = RANKS[ri].toLowerCase();
+  const r2 = RANKS[ci].toLowerCase();
   const suits = ['s','h','d','c'];
+  // boardCardsはすでに小文字前提
+  const board = boardCards.map(c => c.toLowerCase());
 
-  // 全コンボを列挙して除外
   let valid = 0;
 
   if (ri === ci) {
-    // ペア：C(4,2)=6コンボ → 4スートの組み合わせ
-    const pairs = [];
+    // ペア：C(4,2)=6コンボ
     for (let i = 0; i < suits.length; i++) {
       for (let j = i+1; j < suits.length; j++) {
-        pairs.push([r1+suits[i], r1+suits[j]]);
+        const a = r1+suits[i], b = r1+suits[j];
+        if (!board.includes(a) && !board.includes(b)) valid++;
       }
     }
-    valid = pairs.filter(([a,b]) =>
-      !boardCards.some(bc => bc === a) && !boardCards.some(bc => bc === b)
-    ).length;
   } else if (ri < ci) {
-    // スーテッド：同スートの組み合わせ4通り
-    valid = suits.filter(s =>
-      !boardCards.some(bc => bc === r1+s) && !boardCards.some(bc => bc === r2+s)
-    ).length;
+    // スーテッド：4コンボ
+    for (const s of suits) {
+      if (!board.includes(r1+s) && !board.includes(r2+s)) valid++;
+    }
   } else {
-    // オフスーツ：異スートの組み合わせ 4×4-4=12通り
-    let count = 0;
+    // オフスーツ：12コンボ
     for (const s1 of suits) {
       for (const s2 of suits) {
         if (s1 === s2) continue;
-        if (!boardCards.some(bc => bc === r1+s1) && !boardCards.some(bc => bc === r2+s2)) {
-          count++;
-        }
+        if (!board.includes(r1+s1) && !board.includes(r2+s2)) valid++;
       }
     }
-    valid = count;
   }
   return valid;
 }
